@@ -1,0 +1,309 @@
+<html>
+<head>
+<title>Galaxy</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="shortcut icon" type="image/x-icon" href="http://www.matthewmorrone.com/psi.ico" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-color/2.1.2/jquery.color.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/css/bootstrap.min.css" />
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.0/css/font-awesome.min.css" />
+<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Lekton|Lora:400,700,400italic" />
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
+<link rel="stylesheet" href="../js/simple-console.css" />
+<script src="../js/random.min.js"></script>
+<script src="../js/prob.js"></script>
+<script src="../js/jstat.js"></script>
+<script src="../js/three.min.js"></script>
+<script src="../js/three.orbit.js"></script>
+<script src="../js/dat.gui.min.js"></script>
+<script src="../js/alasql.min.js"></script>
+<script src="../js/simple-console.js"></script>
+<script src="../js/weighted-list.js"></script>
+<script src="../js/controlKit.js"></script>
+<style>
+::-webkit-scrollbar {
+    display: none;
+}
+* {
+    margin: 0px;
+    padding: 0px;
+}
+body {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-flow: row wrap;
+}
+#console, output {
+    width: 100%;
+    position: fixed !important;
+    bottom: 0px;
+    padding: 0px;
+}
+output {
+    height: 200px;
+    background-color: rgba(255, 255, 255, .5);
+    overflow-x: scroll;
+    font-family: monospace;
+    white-space: pre;
+    color: black;
+}
+#controls {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+}
+.fixed {
+    position: fixed;
+    top: 0px;
+    right: 0px;
+}
+.label {
+    font-family: 'Lora', Georgia, serif;
+    position: fixed;
+    font-style: italic;
+    color: white;
+}
+</style>
+</head>
+<body>
+</body>
+<script id="vertex_shader" type="x-shader/x-vertex">
+varying vec3 vNormal;
+void main() {
+    vNormal = normal;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+</script>
+<script id="fragment_shader" type="x-shader/x-fragment">
+uniform sampler2D texture;
+varying vec3 vNormal;
+void main() {
+    vec2 uv = normalize(vNormal).xy * 0.5 + 0.5;
+    vec3 color = texture2D(texture, uv).rgb;
+    if (vNormal.z < - 0.85) color = vec3(0.777, 0.74, 0.74);
+    gl_FragColor = vec4(color, 1.0);
+}
+</script>
+<script>
+
+let parameters = {
+    arms: {
+        value: 4,
+        range: [2, 8]
+    },
+    vorticity: 1,
+    jitter: 16,
+    stars: 1024,
+    radius: 64,
+    distribution: {
+        options: ["spiral", "normal", "uniform", "exponential", "lognormal", "chisquare", "beta"],
+        selection: "spiral",
+    },
+    offset: .5,
+    planarOffset: 64,
+    view: {
+        x: 0,
+        y: 150,
+        z: 0
+    }
+}
+
+let Distributions = {}
+Distributions.normal      = () => Prob.normal(0.5, .1)()
+Distributions.exponential = () => Prob.exponential(5)()
+Distributions.uniform     = () => Prob.uniform(0, 1)()
+Distributions.lognormal   = () => Prob.lognormal(0, 1/2)()
+Distributions.chisquare   = () => jStat.chisquare.sample(1)
+Distributions.beta        = () => jStat.beta.sample(1.445, 1.445)
+
+let starClasses = new WeightedList([
+    {key: "b", weight: 10,  data: {color: 0x8888ff, size: 56}},
+    {key: "a", weight: 10,  data: {color: 0xffffff, size: 48}},
+    {key: "f", weight: 15,  data: {color: 0xffff88, size: 40}},
+    {key: "g", weight: 30,  data: {color: 0xffd788, size: 32}},
+    {key: "k", weight: 20,  data: {color: 0xffa588, size: 16}},
+    {key: "m", weight: 20,  data: {color: 0xff8888, size: 8}},
+    {key: "x", weight: 0.8, data: {color: 0x000000, size: 8}},
+    {key: "n", weight: 0.4, data: {color: 0x999999, size: 8}},
+    {key: "p", weight: 0.4, data: {color: 0x666666, size: 8}},
+]);
+
+function Galaxy() {
+
+    this.starCount = parameters.stars || 100
+    this.radius = parameters.radius || 100
+    this.galaxy = new THREE.Group()
+    this.distribution = parameters.distribution.selection
+    this.center = 0
+    this.axis = new THREE.AxisHelper(this.radius)
+    this.axis.visible = false
+    this.fog = new THREE.Fog(0xffffff)
+    this.starScale = .025
+    this.starMag = .5
+
+    this.randomDistance = function() {
+        return Math.floor(this.center + Distributions[this.distribution]() * (this.radius - this.center + 1));
+    }
+    this.randomAngle = function() {
+        return Math.random() * Math.PI * 2;
+    }
+
+    let i, j, dd, dr, dx, dy, dz, star, p1, p2
+    let starData, starClass, starColor, starRadius, starGeometry, starMaterial, starMesh, starLight
+    let sprite, spriteMaterial
+    let material, geometry, line
+
+    for(i = 0; i < this.starCount; i++) {
+
+        if (parameters.distribution.selection === "spiral") {
+            dd =              (i                      + (Math.random() * parameters.jitter))
+            dr = Math.PI/90 * (i/parameters.vorticity + (Math.random() * parameters.jitter))
+
+            dr += ((2*Math.PI)*(1/parameters.arms.value)*(i % parameters.arms.value))
+        }
+        else {
+            dd = this.randomDistance()
+            dr = this.randomAngle()
+        }
+
+        dx = Math.cos(dr) * dd;
+        dy = Distributions.normal() * parameters.planarOffset - (parameters.planarOffset/2);
+        dz = Math.sin(dr) * dd;
+
+        starData   = starClasses.peek()[0]
+        starClass  = starData.key
+        starColor  = 0xffffff
+        starRadius = starData.data.size * this.starScale + this.starMag
+
+        starGeometry = new THREE.SphereGeometry(starRadius, 16, 16);
+        starMaterial = new THREE.MeshBasicMaterial({
+            color: starColor,
+            transparent: true,
+            opacity: 1
+        });
+        starMesh = new THREE.Mesh(starGeometry, starMaterial);
+
+        starMesh.position.set(dx, dy, dz);
+
+        spriteMaterial = new THREE.SpriteMaterial({
+            map: new THREE.ImageUtils.loadTexture('glow.png'),
+            useScreenCoordinates: false,
+            color: starColor,
+            transparent: true,
+            opacity: 1,
+            blending: THREE.AdditiveBlending
+        });
+        sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(10, 10, 1.0);
+        sprite.name = starMesh.name
+        starMesh.add(sprite)
+
+        this.galaxy.add(starMesh)
+    }
+    this.galaxy.add(this.axis)
+    return this
+}
+
+
+function Simulation() {
+    this.fov = 45
+    this.aspect = window.innerWidth / window.innerHeight
+    this.near = 0.1
+    this.far = 10000
+    this.renderer
+    this.scene
+    this.camera
+    this.ambient
+    this.point
+    this.controls
+    this.raycaster
+    this.mouse
+    this.intersects
+    this.background = 0x000000
+
+    this.resize = function() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    this.setup = function() {
+        window.addEventListener('resize', this.resize, false);
+
+        this.renderer = new THREE.WebGLRenderer({
+            alpha: true,
+            antialias: true
+        })
+        this.raycaster = new THREE.Raycaster()
+        this.mouse = new THREE.Vector2()
+
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+
+        document.body.appendChild(this.renderer.domElement);
+
+        this.renderer.setClearColor(0x000000, 1);
+
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000000);
+
+        let skyGeometry = new THREE.BoxGeometry(10000, 10000, 10000);
+        let skyChoice = Math.floor(Math.random() * 5) + 1
+        let skyTextureCube = THREE.ImageUtils.loadTextureCube([
+            `skybox/skybox_gen_${skyChoice}-0.png`, `skybox/skybox_gen_${skyChoice}-1.png`, `skybox/skybox_gen_${skyChoice}-2.png`,
+            `skybox/skybox_gen_${skyChoice}-3.png`, `skybox/skybox_gen_${skyChoice}-4.png`, `skybox/skybox_gen_${skyChoice}-5.png`,
+        ]);
+        let skyShader = THREE.ShaderLib["cube"];
+        skyShader.uniforms["tCube"].value = skyTextureCube;
+        let skyMaterial = new THREE.ShaderMaterial({
+            fragmentShader: skyShader.fragmentShader,
+            vertexShader: skyShader.vertexShader,
+            uniforms: skyShader.uniforms,
+            depthWrite: false,
+            side: THREE.BackSide
+        });
+        this.skyBox = new THREE.Mesh(skyGeometry, skyMaterial);
+        this.scene.add(this.skyBox);
+
+        this.camera = new THREE.PerspectiveCamera(this.fov, this.aspect, this.near, this.far);
+        this.camera.lookAt(this.scene.position);
+
+        this.ambient = new THREE.AmbientLight(0xffffff);
+        this.scene.add(this.ambient);
+
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableContextMenu = false;
+        this.controls.enablePan = true;
+        this.controls.enableKeys = false;
+
+        this.camera.position.set(325.64099652857743, 170.8123831924949, 356.26545037087135);
+        this.camera.updateProjectionMatrix()
+
+        this.controls.update();
+
+        this.renderer.render(this.scene, this.camera);
+    }
+    return this
+}
+
+let simulation = new Simulation()
+simulation.setup()
+let galaxy = new Galaxy()
+simulation.scene.add(galaxy.galaxy)
+
+
+function animate() {
+    requestAnimationFrame(animate);
+    simulation.scene.add(simulation.skyBox);
+    simulation.controls.update();
+    simulation.renderer.render(simulation.scene, simulation.camera);
+}
+animate()
+
+
+
+</script>
+</html>

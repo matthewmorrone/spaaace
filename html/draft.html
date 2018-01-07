@@ -1,0 +1,651 @@
+<html>
+<head>
+<title>Galaxy</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="shortcut icon" type="image/x-icon" href="http://www.matthewmorrone.com/psi.ico" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
+<script type="text/javascript" src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-color/2.1.2/jquery.color.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/css/bootstrap.min.css" />
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.0/css/font-awesome.min.css" />
+<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Lekton|Lora:400,700,400italic" />
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
+<link rel="stylesheet" href="../js/simple-console.css" />
+<script src="../js/random.min.js"></script>
+<script src="../js/prob.js"></script>
+<script src="../js/jstat.js"></script>
+<script src='../js/chained-canvas.js'></script>
+<script src="../js/three.min.js"></script>
+<script src="../js/three.orbit.js"></script>
+<script src="../js/dat.gui.min.js"></script>
+<script src="../js/alasql.min.js"></script>
+<script src="../js/simple-console.js"></script>
+<script src="../js/weighted-list.js"></script>
+<script src="../js/controlKit.js"></script>
+<style>
+::-webkit-scrollbar {
+    display: none;
+}
+* {
+    margin: 0px;
+    padding: 0px;
+}
+body {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-flow: row wrap;
+}
+#console, output {
+    width: 100%;
+    position: fixed !important;
+    bottom: 0px;
+    padding: 0px;
+}
+output {
+    height: 200px;
+    background-color: rgba(255, 255, 255, .5);
+    overflow-x: scroll;
+    font-family: monospace;
+    white-space: pre;
+    color: black;
+}
+#controls {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+}
+.fixed {
+    position: fixed;
+    top: 0px;
+    right: 0px;
+}
+.label {
+    font-family: 'Lora', Georgia, serif;
+    position: fixed;
+    font-style: italic;
+    color: white;
+}
+</style>
+</head>
+<body>
+<div class=label></div>
+<output></output>
+<input type="text" name="console" id="console" value='' />
+</body>
+<script id="vertex_shader" type="x-shader/x-vertex">
+varying vec3 vNormal;
+void main() {
+    vNormal = normal;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+</script>
+<script id="fragment_shader" type="x-shader/x-fragment">
+uniform sampler2D texture;
+varying vec3 vNormal;
+void main() {
+    vec2 uv = normalize(vNormal).xy * 0.5 + 0.5;
+    vec3 color = texture2D(texture, uv).rgb;
+    if (vNormal.z < - 0.85) color = vec3(0.777, 0.74, 0.74); // back of eye
+    gl_FragColor = vec4(color, 1.0);
+}
+</script>
+<script>
+
+alasql("CREATE TABLE stars (name string, category string, color string, size number, x number, y number, z number);");
+// let history = []
+// let cursor = 0
+// cursor = 0
+// history.push('SELECT Count(*) FROM stars')
+// cursor++
+// history.push('SELECT * FROM stars ORDER BY RANDOM() LIMIT 3')
+// cursor++
+// history.push('SELECT category, Count(category) FROM stars GROUP BY category')
+// cursor++
+
+function print() {
+    let output = arguments[0]
+    // for(let a in arguments) {
+    //     output += JSON.stringify(arguments[a], null, 4) + ' '
+    // }
+    let result = JSON.stringify(output, null, 4)
+    result = result.replace(/\s/gm, '')
+    result = result.replace(/},{/gm, '\n')
+    result = result.replace(/\"/gm, '')
+    result = result.replace(/\[\{/gm, '')
+    result = result.replace(/\}\]/gm, '')
+    result = result.replace(/,/gm, '\t')
+    result = result.trim()
+    $('output').text($('output').text()+'\n'+result)
+    // $('output').text($('output').text().trim())
+    $('output').scrollTop($('output')[0].scrollHeight)
+}
+
+let parameters = {
+    arms: {
+        value: 4,
+        range: [2, 8]
+    },
+    vorticity: 2,
+    // jitter: {
+    //     value: 16,
+    //     range: [0, 256]
+    // },
+    jitter: 16,
+    stars: 256,
+    radius: 256,
+    distribution: {
+        options: ["spiral", "normal", "uniform", "exponential", "lognormal", "chisquare", "beta"],
+        selection: "spiral",
+        // selection: null,
+    },
+    offset: .5,
+    planarOffset: 64,
+    view: {
+        x: 0,
+        y: 150,
+        z: 0
+    }
+}
+// parameters.distribution.selection = parameters.distribution.options[Math.floor(Math.random()*parameters.distribution.options.length)]
+let panel = new ControlKit()
+let galaxy = ''
+panel.addPanel({opacity: .75, align: "left"})
+.addGroup()
+.addSubGroup()
+.addSlider(parameters.arms, 'arms',  'range', {dp: 0, step:  1, min: 2, onFinish: function() {
+    $('input[value="Generate"]').click()
+}})
+// .addNumberInput(parameters, 'arms',         {dp: 0, min: 2, step: 1})
+.addNumberInput(parameters, 'vorticity',    {dp: 0, min: 1})
+.addNumberInput(parameters, 'jitter',       {dp: 0, min: 1, step: .1})
+// .addSlider(parameters.jitter, 'jitter',  'range', {dp: 0, step:  1, min: 0, onFinish: function() {
+//     $('input[value="Generate"]').click()
+// }})
+.addNumberInput(parameters, 'radius',       {dp: 0, step: 10})
+.addNumberInput(parameters, 'stars',        {dp: 0, step: 100})
+.addNumberInput(parameters, 'offset',       {dp: 0})
+.addNumberInput(parameters, 'planarOffset', {dp: 1, step: .1})
+.addSelect(parameters.distribution, 'options', {
+    target: 'selection'
+})
+.addButton('axis', function() {
+    if (galaxy) {
+        galaxy.axis.visible = !galaxy.axis.visible
+        simulation.controls.update()
+        simulation.renderer.render(simulation.scene, simulation.camera)
+    }
+})
+.addButton('bounds', function() {
+    if (galaxy) {
+        let bounds = {
+            maxx: alasql('select max(x) as maxx from stars')[0].maxx,
+            minx: alasql('select min(x) as minx from stars')[0].minx,
+            maxy: alasql('select max(y) as maxy from stars')[0].maxy,
+            miny: alasql('select min(y) as miny from stars')[0].miny,
+            maxz: alasql('select max(z) as maxz from stars')[0].maxz,
+            minz: alasql('select min(z) as minz from stars')[0].minz,
+        }
+
+        let ringRadius = Math.max(...[bounds.maxx, Math.abs(bounds.minx), bounds.maxz, Math.abs(bounds.minz)])
+
+        let ringGeometry, ringMesh, ringOutline
+        ringGeometry = new THREE.CircleGeometry(ringRadius, 90)
+        ringMesh = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: .5, side: THREE.BackSide})
+        ringOutline = new THREE.Line(ringGeometry, ringMesh);
+        ringOutline.geometry.vertices.shift();
+        ringOutline.position.set(0, bounds.maxy, 0);
+        ringOutline.rotation.set(Math.PI/2, 0, 0);
+        galaxy.galaxy.add(ringOutline)
+
+        ringGeometry = new THREE.CircleGeometry(ringRadius, 90)
+        ringMesh = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: .5, side: THREE.BackSide})
+        ringOutline = new THREE.Line(ringGeometry, ringMesh);
+        ringOutline.geometry.vertices.shift();
+        ringOutline.position.set(0, bounds.miny, 0);
+        ringOutline.rotation.set(Math.PI/2, 0, 0);
+        galaxy.galaxy.add(ringOutline)
+
+
+
+        simulation.renderer.render(simulation.scene, simulation.camera)
+        galaxy.bounds = bounds
+    }
+})
+.addButton('Generate', function() {
+    while(simulation.scene.children.length > 0){
+        simulation.scene.remove(simulation.scene.children[0]);
+    }
+    galaxy = new Galaxy()
+    simulation.scene.add(galaxy.galaxy)
+
+    // print(alasql('SELECT COUNT(*) FROM stars'))
+    // print(alasql('SELECT category, Count(category) FROM stars GROUP BY category'))
+})
+// .addNumberInput(parameters.view, 'x',     {dp: 0})
+// .addNumberInput(parameters.view, 'y',     {dp: 0})
+// .addNumberInput(parameters.view, 'z',     {dp: 0})
+
+
+let Distributions = {}
+Distributions.normal      = () => Prob.normal(0.5, .1)()
+Distributions.exponential = () => Prob.exponential(5)()
+Distributions.uniform     = () => Prob.uniform(0, 1)()
+Distributions.lognormal   = () => Prob.lognormal(0, 1/2)()
+Distributions.chisquare   = () => jStat.chisquare.sample(1)
+Distributions.beta        = () => jStat.beta.sample(1.445, 1.445)
+
+let starNames = 'Abdrade Acamar Acculum Achernar Ackolam Aclinda Acrux Acubens Adar Advatir Aesir Ajam Ajandis Alamak Alcor Aldebaran Alderaan Aldib Algol Algorab Alioth Alkaid Almach Alpha Alphard Alphecca Altair Aludra Ampal Anachonus Anaxador Angetenar Antak Antares Aquilae Arbatraeus Arcturus Arich Arrakis Ascella Ashimax Astarte Asterion Asterope Astinda Astore Aswiri Athyorix Atlas Avaconea Avior Azaleh Azha Baham Beid Bellatrix Benetnasch Beta Betelgeuse Betria Biham Botein Brachium Brink Bunda Caeli Canopus Capella Caph Caranis Carovon Castor Cebelrai Celaeno Ceti Chara Cheleb Chertan Chi Chohar Chort Churassix Collodor Corvi Crescim Cursa Cygni Dabih Daranma Degantu Delta Diadem Diphda Dir Dorellion Draconis Dradim Duhr Durascadon Eadominar Eam Ebbanaur Ecio Ecynth Edasich Edellimar Edemar Efrov Eiol Eissam Ekoecromia Electra Eliathion Elnath Elthior Enif Enim Ennust Epsilon Erdosca Eridani Erimadon Errai Escant Eskellion Esteraeus Estreon Etsceron Evexus Exslillon Ferathon Ferragon Folingar Fomalhaut Furud Gamma Gatana Gatria Gedexus Gemma Gianfar Giedi Girtab Gomeisa Grumium Hadar Haedus Halax Haldus Hantaron Hasseleh Hazra Heka Hensedon Heze Higma Hijeroscant Hixam Hixar Hixaros Hodranus Hoedus Holdebaana Homam Hyadum Hydri Hydrobius Hyrma Icheon Ijax Illex Imdar Indi Iolam Ionides Iram Iriani Isius Istora Izar Jabbah Jih Kajam Kastra Keid Kentharom Kleeia Kochab Kornephoros Kraz Ksora Kuma Lambda Lesath Maasym Magam Maia Maragdis Marfark Markab Matar Media Meissa Menchib Menkar Merga Merope Mesarthim Minchir Mindara Mintaka Mira Mirach Mirzam Mizar Molbion Moregard Muphrid Muscida Naos Nashira Navi Nekkar Nembus Neshmet Nihal Nixahel Nizatorom Nodox Nunki Nusakan Obleon Occidan Okul Omicron Oxamon Pathavon Pavonis Pentarum Persei Peudeanus Phact Pherkad Pleione Polaris Poligar Pollux Polystea Porrima Propus Rana Rasalas Rasalgethi Rasalhague Rastaban Regor Regulus Reticuli Rham Rigel Rotanev Ruchba Rukbat Sabik Sadalbari Sadatoni Saiph Sallax Sargas Sasin Sceptrum Scheat Scheddi Scipiton Seginus Seradon Serpentis Shaula Sheliak Sheratan Sigma Sinistra Situla Skat Spica Sterope Stiridon Stratal Strom Subra Syrma Tarazed Tau Terebellum Thabit Theemin Thuban Tiamat Troidom Tropallum Tureis Tyl Unar Unuk Unur Ushakaron Usksion Vega Wasat Wezen Yildun Zaniah Zarim Zaurak Zedran Zeta Zosma Zuben'.split(' ')
+let starClasses = new WeightedList([
+    {key: "b", weight: 10,    data: {color: 0x8888ff, size: 56}},
+    {key: "a", weight: 10,    data: {color: 0xffffff, size: 48}},
+    {key: "f", weight: 15,    data: {color: 0xffff88, size: 40}},
+    {key: "g", weight: 30,    data: {color: 0xffd788, size: 32}},
+    {key: "k", weight: 20,    data: {color: 0xffa588, size: 16}},
+    {key: "m", weight: 20,    data: {color: 0xff8888, size: 8}},
+    {key: "x", weight: 0.8, data: {color: 0x000000, size: 8}},
+    {key: "n", weight: 0.4, data: {color: 0x999999, size: 8}},
+    {key: "p", weight: 0.4, data: {color: 0x666666, size: 8}},
+]);
+let gradientImage = new Image(), gradientCanvas, normalizedSize = 64
+gradientImage.src = '../img/star_color_modified.png';
+gradientImage.addEventListener("load", function() {
+    gradientCanvas = document.createElement('canvas');
+    gradientCanvas.width = gradientImage.width;
+    gradientCanvas.height = gradientImage.height;
+    gradientCanvas.className = 'fixed'
+
+    gradientCanvas.getContext('2d').drawImage(gradientImage, 0, 0, gradientImage.width, gradientImage.height);
+    $(document.body).append(gradientCanvas)
+
+    for(let info in starClasses.data) {
+        if (starClasses.data[info].size > normalizedSize) {
+            normalizedSize = starClasses.data[info].size
+        }
+    }
+})
+
+//    a function to grab the pixel color based on a normalized percentage value
+function getColor(gradientImage, gradientCanvas, percentage) {
+    let color = gradientCanvas.getContext('2d').getImageData(percentage * gradientImage.width, 0, 1, 1).data;
+    color = Array.from(color).slice(0, -1)
+    color = `rgb(${color[0]}, ${color[1]}, ${color[2]})`
+    return color
+}
+
+function Galaxy() {
+
+    this.starCount = parameters.stars || 100
+    this.radius = parameters.radius || 100
+    this.galaxy = new THREE.Group()
+    this.distribution = parameters.distribution.selection
+    this.center = 0
+    this.axis = new THREE.AxisHelper(this.radius)
+    this.axis.visible = false
+    this.fog = new THREE.Fog(0xffffff)
+    this.starScale = .025
+    this.starMag = .5
+
+    this.randomDistance = function() {
+        return Math.floor(this.center + Distributions[this.distribution]() * (this.radius - this.center + 1));
+    }
+    this.randomAngle = function() {
+        return Math.random() * Math.PI * 2;
+    }
+
+    let i, j, dd, dr, dx, dy, dz, star, p1, p2
+    let starData, starClass, starColor, starRadius, starGeometry, starMaterial, starMesh, starLight
+    let sprite, spriteMaterial
+    let material, geometry, line
+
+    // let image
+    // image.src = 'pulsar_diffuse_end.png'
+    // let texture = new THREE.Texture(image);
+    // image.addEventListener('load', function (event) {texture.needsUpdate = true;});
+
+    // let uniforms = {
+    //     "texture": { type: "t", value: texture }
+    // };
+    // let starAtmosphere = new THREE.ShaderMaterial({
+    //     uniforms        : uniforms,
+    //     vertexShader    : document.getElementById('vertex_shader').textContent,
+    //     fragmentShader    : document.getElementById('fragment_shader').textContent
+    // });
+
+    for(i = 0; i < this.starCount; i++) {
+
+        if (parameters.distribution.selection === "spiral") {
+            dd =              (i                      + (Math.random() * parameters.jitter))
+            dr = Math.PI/90 * (i/parameters.vorticity + (Math.random() * parameters.jitter))
+
+            dr += ((2*Math.PI)*(1/parameters.arms.value)*(i % parameters.arms.value))
+        }
+        else {
+            dd = this.randomDistance()
+            dr = this.randomAngle()
+        }
+
+        dx = Math.cos(dr) * dd;
+        dy = Distributions.normal() * parameters.planarOffset - (parameters.planarOffset/2);
+        dz = Math.sin(dr) * dd;
+
+        // p1 = new THREE.Vector3(dx, dy, dz)
+        // for(j = 0; j < i; j++) {
+        //     p2 = this.galaxy.children[j].position
+        //     while (p1.distanceTo(p2) < 20) {
+        //         dd = this.randomDistance()
+        //         dr = this.randomAngle()
+        //         dx = Math.cos(dr) * dd;
+        //         dy = Distributions.normal() * parameters.planarOffset - (parameters.planarOffset/2)
+        //         dz = Math.sin(dr) * dd;
+        //         p1 = new THREE.Vector3(dx, dy, dz)
+        //     }
+        // }
+        // for(j = 0; j < i; j++) {
+        //     p2 = this.galaxy.children[j].position
+        //     if (p1.distanceTo(p2) > 20) continue
+        //     material = new THREE.LineBasicMaterial({color: "green"});
+        //     geometry = new THREE.Geometry();
+        //     geometry.vertices.push(p1);
+        //     geometry.vertices.push(p2);
+        //     line = new THREE.Line(geometry, material);
+        //     this.galaxy.add(line);
+        // }
+
+        starData   = starClasses.peek()[0]
+        starClass  = starData.key
+        starColor  = getColor(gradientImage, gradientCanvas, starData.data.size/normalizedSize)
+        starRadius = starData.data.size * this.starScale + this.starMag
+
+        starGeometry = new THREE.SphereGeometry(starRadius, 16, 16);
+        starMaterial = new THREE.MeshBasicMaterial({
+            color: starColor,
+            transparent: true,
+            opacity: 1
+        });
+        starMesh = new THREE.Mesh(starGeometry, starMaterial);
+
+        starMesh.position.set(dx, dy, dz);
+        starMesh.name = starNames.splice(Math.floor(Math.random() * starNames.length), 1)[0];
+
+        spriteMaterial = new THREE.SpriteMaterial({
+            map: new THREE.ImageUtils.loadTexture('glow.png'),
+            useScreenCoordinates: false,
+            color: starColor,
+            transparent: true,
+            opacity: 1,
+            blending: THREE.AdditiveBlending
+        });
+        sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(10, 10, 1.0);
+        sprite.name = starMesh.name
+        starMesh.add(sprite)
+
+        alasql("INSERT INTO stars VALUES (?,?,?,?,?,?,?)", [
+            starMesh.name,
+            starClass,
+            starColor,
+            starRadius,
+            starMesh.position.x.toFixed(1),
+            starMesh.position.y.toFixed(1),
+            starMesh.position.z.toFixed(1)
+        ]);
+        this.galaxy.add(starMesh)
+    }
+    this.galaxy.add(this.axis)
+    return this
+}
+
+
+function Simulation() {
+    this.fov = 45
+    this.aspect = window.innerWidth / window.innerHeight
+    this.near = 0.1
+    this.far = 10000
+    this.renderer
+    this.scene
+    this.camera
+    this.ambient
+    this.point
+    this.controls
+    this.raycaster
+    this.mouse
+    this.intersects
+    this.background = 0x000000
+
+    this.resize = function() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    this.setup = function() {
+        window.addEventListener('resize', this.resize, false);
+
+        this.renderer = new THREE.WebGLRenderer({
+            alpha: true,
+            antialias: true
+        })
+        this.raycaster = new THREE.Raycaster()
+        this.mouse = new THREE.Vector2()
+
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        // this.renderer.setPixelRatio(window.devicePixelRatio);
+
+        document.body.appendChild(this.renderer.domElement);
+
+        this.renderer.setClearColor(0x000000, 1);
+
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000000);
+
+        let skyGeometry = new THREE.BoxGeometry(10000, 10000, 10000);
+        let skyChoice = Math.floor(Math.random() * 5) + 1
+        let skyTextureCube = THREE.ImageUtils.loadTextureCube([
+            // "starfield-1.png", "starfield-2.png", "starfield-1.png",
+            // "starfield-2.png", "starfield-1.png", "starfield-2.png"
+            `../skybox/skybox_gen_${skyChoice}-0.png`, `../skybox/skybox_gen_${skyChoice}-1.png`, `../skybox/skybox_gen_${skyChoice}-2.png`,
+            `../skybox/skybox_gen_${skyChoice}-3.png`, `../skybox/skybox_gen_${skyChoice}-4.png`, `../skybox/skybox_gen_${skyChoice}-5.png`,
+        ]);
+        let skyShader = THREE.ShaderLib["cube"];
+        skyShader.uniforms["tCube"].value = skyTextureCube;
+        let skyMaterial = new THREE.ShaderMaterial({
+            fragmentShader: skyShader.fragmentShader,
+            vertexShader: skyShader.vertexShader,
+            uniforms: skyShader.uniforms,
+            depthWrite: false,
+            side: THREE.BackSide
+        });
+        this.skyBox = new THREE.Mesh(skyGeometry, skyMaterial);
+        this.scene.add(this.skyBox);
+
+        this.camera = new THREE.PerspectiveCamera(this.fov, this.aspect, this.near, this.far);
+        this.camera.lookAt(this.scene.position);
+
+        // this.point = new THREE.PointLight(0xFFFFFF, 1, 0, 2);
+        // this.point.position.set(0, 0, 0);
+        // this.scene.add(this.point);
+
+        this.ambient = new THREE.AmbientLight(0xffffff);
+        this.scene.add(this.ambient);
+
+        // this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        // this.controls.enableContextMenu = false;
+        // this.controls.enablePan = true;
+        // this.controls.enableKeys = false;
+        // this.camera.position.set(parameters.view.x, parameters.radius*2, parameters.view.z);
+        this.camera.position.set(325.64099652857743, 170.8123831924949, 356.26545037087135);
+        this.camera.updateProjectionMatrix()
+
+        // this.controls.update();
+
+        this.renderer.render(this.scene, this.camera);
+    }
+    return this
+}
+
+let simulation = new Simulation()
+simulation.setup()
+// let galaxy = new Galaxy()
+// simulation.scene.add(galaxy.galaxy)
+
+function drawTree() {
+    let material, geometry, line, color = 'green'
+    let p1 = simulation.intersects[inter].object.position, p2
+    for(let j = 0; j < galaxy.galaxy.children.length; j++) {
+        p2 = galaxy.galaxy.children[j].position
+        if (p1.distanceTo(p2) > 50) continue
+
+        // if      (p1.distanceTo(p2) < 50) color = 'green'
+        // else if (p1.distanceTo(p2) < 100 && p1.distanceTo(p2) >= 50) color = 'yellow'
+        // else color = 'red'
+
+        material = new THREE.LineBasicMaterial({color: color});
+        geometry = new THREE.Geometry();
+        geometry.vertices.push(p1);
+        geometry.vertices.push(p2);
+        line = new THREE.Line(geometry, material);
+        galaxy.galaxy.add(line);
+    }
+}
+let mX, mY, vector, factor = 1000, intersects
+$(document).on('mousedown', 'canvas', event => {
+    simulation.mouse.x =   (event.clientX / window.innerWidth)  * 2 - 1;
+    simulation.mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+    simulation.raycaster.setFromCamera(simulation.mouse, simulation.camera);
+
+    simulation.intersects = simulation.raycaster.intersectObjects(galaxy.galaxy.children, true);
+
+    if (simulation.intersects.length > 0) {
+        console.log(event)
+        $('.label').text(simulation.intersects[0].object.name).css({
+            top:  event.pageY,
+            left: event.pageX,
+        })
+
+        mX =   (event.clientX / window.innerWidth)  * 2 - 1;
+        mY = - (event.clientY / window.innerHeight) * 2 + 1;
+        vector = new THREE.Vector3(mX, mY, 1);
+        vector.unproject(simulation.camera);
+        vector.sub(simulation.camera.position);
+        simulation.camera.position.addVectors(simulation.camera.position, vector.setLength(factor));
+        simulation.controls.target.addVectors(simulation.controls.target, vector.setLength(factor));
+
+
+
+        for(let inter in simulation.intersects) {
+            // console.log(simulation.intersects[inter].object.name, event.clientX, event.clientY)
+        }
+    }
+
+})
+// $(document).on('mousedown', event => {
+
+//     simulation.mouse.x =   (event.clientX / window.innerWidth)  * 2 - 1;
+//     simulation.mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+//     simulation.raycaster.setFromCamera(simulation.mouse, simulation.camera);
+
+//     simulation.intersects = simulation.raycaster.intersectObjects(galaxy.galaxy.children, true);
+
+//     if (simulation.intersects.length > 0) {
+//         console.log(event)
+//         $('.label').text(simulation.intersects[0].object.name).css({
+//             top:  event.pageY,
+//             left: event.pageX,
+//         })
+//         for(let inter in simulation.intersects) {
+
+//             // console.log(simulation.intersects[inter].object.name, event.clientX, event.clientY)
+
+//         }
+//     }
+// })
+
+// $(document).on('mousedown', event => {
+//     try {
+//         if (!galaxy) {
+//             return
+//         }
+//         simulation.mouse.x =   (event.clientX / window.innerWidth)  * 2 - 1;
+//         simulation.mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+//         simulation.raycaster.setFromCamera(simulation.mouse, simulation.camera);
+
+//         simulation.intersects = simulation.raycaster.intersectObjects(galaxy.galaxy.children, true);
+//         if (simulation.intersects.length > 0) {
+//             for(let inter in simulation.intersects) {
+//                 console.log(simulation.intersects[inter].object)
+//                 simulation.intersects[inter].object.scale.x *= 1.1
+//                 simulation.intersects[inter].object.scale.y *= 1.1
+//                 simulation.intersects[inter].object.scale.z *= 1.1
+//                 simulation.intersects[inter].object.material.color.r = 1 - simulation.intersects[inter].object.material.color.r
+//                 simulation.intersects[inter].object.material.color.g = 1 - simulation.intersects[inter].object.material.color.g
+//                 simulation.intersects[inter].object.material.color.b = 1 - simulation.intersects[inter].object.material.color.b
+//             }
+//         }
+//     } catch(e) {
+//         console.log(e)
+//     }
+// })
+// $(document).on('mousemove', event => {
+//     try {
+//         if (!galaxy) {
+//             return
+//         }
+//         simulation.mouse.x =   (event.clientX / window.innerWidth)  * 2 - 1;
+//         simulation.mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+//         simulation.raycaster.setFromCamera(simulation.mouse, simulation.camera);
+
+//         simulation.intersects = simulation.raycaster.intersectObjects(galaxy.galaxy.children, true);
+//         if (simulation.intersects.length > 0) {
+//             for(let inter in simulation.intersects) {
+//                 print(simulation.intersects[inter].object.name)
+//             }
+//         }
+//     } catch(e) {
+//         console.log(e)
+//     }
+// })
+
+function animate() {
+    requestAnimationFrame(animate);
+    // simulation.scene.add(simulation.sphereMesh);
+    simulation.scene.add(simulation.skyBox);
+
+
+    // simulation.controls.update();
+    simulation.renderer.render(simulation.scene, simulation.camera);
+}
+animate()
+
+$(function() {
+
+    $('output').resizable({handles: 'n'})
+
+    // setTimeout(() => {
+    //     $('input[value="Generate"]').click()
+    // }, 1000)
+
+    $(document).on('keydown', '#console', function(e) {
+        if (e.which === 13) {
+            // history.push(e.target.value)
+            // cursor++
+            let result = alasql(e.target.value)
+            print(result)
+            $(e.target).val('')
+        }
+        // if (e.which === 38) {
+        //     cursor--
+        //     if (cursor < 0) cursor = 0
+        //     $(e.target).val(history[cursor])
+        // }
+        // if (e.which === 40) {
+        //     cursor++
+        //     if (cursor > history.length) cursor = history.length
+        //     $(e.target).val(history[cursor])
+        // }
+    })
+})
+
+</script>
+</html>

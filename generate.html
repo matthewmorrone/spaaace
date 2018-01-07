@@ -1,0 +1,193 @@
+<html>
+<head>
+<title>Spaaace</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="shortcut icon" type="image/x-icon" href="http://www.matthewmorrone.com/psi.ico" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-color/2.1.2/jquery.color.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/css/bootstrap.min.css" />
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.0/css/font-awesome.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.css" />
+<script>
+var log = console.log.bind(console)
+</script>
+<style>
+* {
+	margin: 0px;
+	padding: 0px;
+}
+body {
+	width: 100%;
+	height: 100%;
+}
+table, th, td {
+	border: 1px solid black;
+	border-collapse: collapse;
+}
+</style>
+</head>
+<body>
+<script src='js/alasql.min.js'></script>
+<script src='js/random.min.js'></script>
+<script src='js/weighted-list.js'></script>
+<script>
+function combine(left, right) {
+	let result = []
+	for(let i = 0; i < left.length; i++) {
+		for(let j = 0; j < right.length; j++) {
+			result.push(left[i]+" "+right[j])
+		}
+	}
+	return Array.from(new Set(result))
+}
+function rand(min, max) {
+	return Math.floor(Math.random() * (max - min + 1)) + min
+}
+function romanize (num) {
+	if (!+num) {
+		return NaN;
+	}
+	var digits = String(+num).split(""),
+		key = ["","C","CC","CCC","CD","D","DC","DCC","DCCC","CM",
+			   "","X","XX","XXX","XL","L","LX","LXX","LXXX","XC",
+			   "","I","II","III","IV","V","VI","VII","VIII","IX"],
+		roman = "",
+		i = 3;
+	while (i--) {
+		roman = (key[+digits.pop() + (i * 10)] || "") + roman;
+	}
+	return Array(+digits.join("") + 1).join("M") + roman;
+}
+function HSVtoRGB(h, s, v) {
+    var r, g, b, i, f, p, q, t;
+    if (arguments.length === 1) {
+        s = h.s, v = h.v, h = h.h;
+    }
+    i = Math.floor(h * 6);
+    f = h * 6 - i;
+    p = v * (1 - s);
+    q = v * (1 - f * s);
+    t = v * (1 - (1 - f) * s);
+    switch (i % 6) {
+        case 0: r = v, g = t, b = p; break;
+        case 1: r = q, g = v, b = p; break;
+        case 2: r = p, g = v, b = t; break;
+        case 3: r = p, g = q, b = v; break;
+        case 4: r = t, g = p, b = v; break;
+        case 5: r = v, g = p, b = q; break;
+    }
+    return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+    };
+}
+let starNames = 'Abdrade Acamar Acculum Achernar Ackolam Aclinda Acrux Acubens Adar Advatir Aesir Ajam Ajandis Alamak Alcor Aldebaran Alderaan Aldib Algol Algorab Alioth Alkaid Almach Alpha Alphard Alphecca Altair Aludra Ampal Anachonus Anaxador Angetenar Antak Antares Aquilae Arbatraeus Arcturus Arich Arrakis Ascella Ashimax Astarte Asterion Asterope Astinda Astore Aswiri Athyorix Atlas Avaconea Avior Azaleh Azha Baham Beid Bellatrix Benetnasch Beta Betelgeuse Betria Biham Botein Brachium Brink Bunda Caeli Canopus Capella Caph Caranis Carovon Castor Cebelrai Celaeno Ceti Chara Cheleb Chertan Chi Chohar Chort Churassix Collodor Corvi Crescim Cursa Cygni Dabih Daranma Degantu Delta Diadem Diphda Dir Dorellion Draconis Dradim Duhr Durascadon Eadominar Eam Ebbanaur Ecio Ecynth Edasich Edellimar Edemar Efrov Eiol Eissam Ekoecromia Electra Eliathion Elnath Elthior Enif Enim Ennust Epsilon Erdosca Eridani Erimadon Errai Escant Eskellion Esteraeus Estreon Etsceron Evexus Exslillon Ferathon Ferragon Folingar Fomalhaut Furud Gamma Gatana Gatria Gedexus Gemma Gianfar Giedi Girtab Gomeisa Grumium Hadar Haedus Halax Haldus Hantaron Hasseleh Hazra Heka Hensedon Heze Higma Hijeroscant Hixam Hixar Hixaros Hodranus Hoedus Holdebaana Homam Hyadum Hydri Hydrobius Hyrma Icheon Ijax Illex Imdar Indi Iolam Ionides Iram Iriani Isius Istora Izar Jabbah Jih Kajam Kastra Keid Kentharom Kleeia Kochab Kornephoros Kraz Ksora Kuma Lambda Lesath Maasym Magam Maia Maragdis Marfark Markab Matar Media Meissa Menchib Menkar Merga Merope Mesarthim Minchir Mindara Mintaka Mira Mirach Mirzam Mizar Molbion Moregard Muphrid Muscida Naos Nashira Navi Nekkar Nembus Neshmet Nihal Nixahel Nizatorom Nodox Nunki Nusakan Obleon Occidan Okul Omicron Oxamon Pathavon Pavonis Pentarum Persei Peudeanus Phact Pherkad Pleione Polaris Poligar Pollux Polystea Porrima Propus Rana Rasalas Rasalgethi Rasalhague Rastaban Regor Regulus Reticuli Rham Rigel Rotanev Ruchba Rukbat Sabik Sadalbari Sadatoni Saiph Sallax Sargas Sasin Sceptrum Scheat Scheddi Scipiton Seginus Seradon Serpentis Shaula Sheliak Sheratan Sigma Sinistra Situla Skat Spica Sterope Stiridon Stratal Strom Subra Syrma Tarazed Tau Terebellum Thabit Theemin Thuban Tiamat Troidom Tropallum Tureis Tyl Unar Unuk Unur Ushakaron Usksion Vega Wasat Wezen Yildun Zaniah Zarim Zaurak Zedran Zeta Zosma Zuben'.split(' ')
+let greekLetters = 'Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota Kappa Lambda Mu Nu Xi Omicron Pi Rho Sigma Tau Upsilon Phi Chi Psi Omega'.split(' ')
+let genitiveConstellations = 'Andromedae,Antliae,Apodis,Aquarii,Aquilae,Arae,Arietis,Aurigae,Boötis,Caeli,Camelopardalis,Cancri,Canum Venaticorum,Canis Majoris,Canis Minoris,Capricorni,Carinae,Cassiopeiae,Centauri,Cephei,Ceti,Chamaeleontis,Circini,Columbae,Comae Berenices,Coronae Australis,Coronae Borealis,Corvi,Crateris,Crucis,Cygni,Delphini,Doradus,Draconis,Equulei,Eridani,Fornacis,Geminorum,Gruis,Herculis,Horologii,Hydrae,Hydri,Indi,Lacertae,Leonis,Leonis Minoris,Leporis,Librae,Lupi,Lyncis,Lyrae,Mensae,Microscopii,Monocerotis,Muscae,Normae,Octantis,Ophiuchi,Orionis,Pavonis,Pegasi,Persei,Phoenicis,Pictoris,Piscium,Piscis Austrini,Puppis,Pyxidis,Reticuli,Sagittae,Sagittarii,Scorpii,Sculptoris,Scuti,Serpentis,Sextantis,Tauri,Telescopii,Trianguli,Trianguli Australis,Tucanae,Ursae Majoris,Ursae Minoris,Velorum,Virginis,Volantis,Vulpeculae'.split(',')
+let bayerDesignations = combine(greekLetters, genitiveConstellations)
+let starCount = Math.pow(2, rand(7, 11))
+let planetCount = () => rand(4, 10)
+let moonCount = () => rand(0, 3)
+let planetSize = (habitable) => habitable ? rand(12, 25) : rand(4, 36)
+let moonSize = (habitable) => habitable ? rand(12, 25) : rand(5, 12)
+let names = new WeightedList(starNames.concat(bayerDesignations).map(name => [name, 1])).pop(starCount)
+let starClasses = new WeightedList([
+	{key: "b", weight: 10,  data: {color: 0x8888ff, size: 64, hsv: [ 0.71, 0.6, 0.7 ]}},
+	{key: "a", weight: 10,  data: {color: 0xffffff, size: 32, hsv: [ 0.56, 0.4, 0.7 ]}},
+	{key: "f", weight: 15,  data: {color: 0xffff88, size: 16, hsv: [ 0.6, 0.3, 0.6 ]}},
+	{key: "g", weight: 30,  data: {color: 0xffd788, size:  8, hsv: [ 0.09, 0.7, 0.7 ]}},
+	{key: "k", weight: 20,  data: {color: 0xffa588, size:  4, hsv: [ 0.06, 0.65, 0.7 ]}},
+	{key: "m", weight: 20,  data: {color: 0xff8888, size:  2, hsv: [ 0.01, 0.9, 0.6 ]}},
+	{key: "x", weight: 0.8, data: {color: 0x000000, size:  1, hsv: [ 0.075, 0.13, 1.5 ]}},
+	{key: "n", weight: 0.4, data: {color: 0x999999, size:  1, hsv: [ 0.0, 0.0, 1.0 ]}},
+	{key: "p", weight: 0.4, data: {color: 0x666666, size:  1, hsv: [ 0.0, 0.0, 1.0 ]}},
+
+]);
+let planetClasses = new WeightedList([
+	{key: "desert", 		weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.50, 0.2, 0.8)}},
+	{key: "tropical", 		weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.58, 0.3, 0.7)}},
+	{key: "arid", 			weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.50, 0.3, 0.7)}},
+	{key: "ocean", 			weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.58, 0.5, 0.9)}},
+	{key: "tundra", 		weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.58, 0.3, 0.8)}},
+	{key: "arctic", 		weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.48, 0.15, 0.8)}},
+	{key: "continental", 	weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.59, 0.45, 0.95)}},
+	{key: "alpine", 		weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.48, 0.15, 0.8)}},
+	{key: "savannah", 		weight: 1,  data: {habitable: true,  color: HSVtoRGB(0.50, 0.3, 0.7)}},
+	{key: "gaia", 			weight: .1, data: {habitable: true,  color: HSVtoRGB(0.58, 0.3, 0.7)}},
+	{key: "nuked", 			weight: .1, data: {habitable: true,  color: HSVtoRGB(0.6, 0.4, 0.5)}},
+	{key: "gas_giant", 		weight: 10, data: {habitable: false, color: HSVtoRGB(0.1, 0.15, 1.1)}},
+	{key: "molten", 		weight: 10, data: {habitable: false, color: HSVtoRGB(0.05, 0.65, 1.4)}},
+	{key: "barren", 		weight: 10, data: {habitable: false, color: HSVtoRGB(0.1, 0.4, 0.7)}},
+	{key: "barren_cold", 	weight: 10, data: {habitable: false, color: HSVtoRGB(0.55, 0.3, 0.75)}},
+	{key: "toxic", 			weight: 10, data: {habitable: false, color: HSVtoRGB(0.19, 0.45, 0.9)}},
+	{key: "frozen", 		weight: 10, data: {habitable: false, color: HSVtoRGB(0.55, 0.15, 0.7)}},
+]);
+
+alasql("CREATE TABLE stars   (id number AUTOINCREMENT, name string, category string, color string, size number);");
+alasql("CREATE TABLE planets (id number AUTOINCREMENT, name string, star number, category string, color string, size number);");
+alasql("CREATE TABLE moons   (id number AUTOINCREMENT, name string, planet number, category string, color string, size number);");
+
+let star, starData, starId, planets, planetData, planetId, moonData
+for(star in names) {
+
+	starData = starClasses.peek()[0]
+	alasql("INSERT INTO stars VALUES (?,?,?,?,?)", [
+		'',
+		names[star],
+		starData.key,
+		starData.data.color,
+		starData.data.size,
+	]);
+
+	starId = alasql.autoval('stars', 'id')
+	planets = planetCount()
+	for(p = 0; p < planets; p++) {
+		planetData = planetClasses.peek()[0]
+		alasql("INSERT INTO planets VALUES (?,?,?,?,?,?)", [
+			'',
+			names[star] + " " + romanize(p+1),
+			starId,
+			planetData.key,
+			planetData.data.color,
+			planetSize(planetData.data.habitable)
+		]);
+
+		planetId = alasql.autoval('planets', 'id')
+		moons = moonCount()
+		for(let m = 0; m < moons; m++) {
+			moonData = planetClasses.peek()[0]
+			alasql("INSERT INTO moons VALUES (?,?,?,?,?,?)", [
+				'',
+				names[star] + " " + romanize(p+1) + String.fromCharCode(97 + m),
+				planetId,
+				moonData.key,
+				moonData.data.color,
+				planetSize(moonData.data.habitable)
+			]);
+		}
+	}
+}
+
+let stars = alasql('select * from stars')
+for(s in stars) {
+	star = stars[s]
+	star.planets = alasql('select * from planets where star = '+star.id)
+	for(p in star.planets) {
+		planet = star.planets[p]
+		planet.moons = alasql('select * from moons where planet = '+planet.id)
+	}
+}
+document.write(JSON.stringify(stars))
+
+
+
+
+
+
+</script>
+</body>
+</html>
