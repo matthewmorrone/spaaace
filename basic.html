@@ -1,0 +1,296 @@
+<html>
+<head>
+<title>Spaaace</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="shortcut icon" type="image/x-icon" href="http://www.matthewmorrone.com/psi.ico" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-color/2.1.2/jquery.color.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/css/bootstrap.min.css" />
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.0/css/font-awesome.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.css" />
+<script>
+let log = console.log.bind(console)
+</script>
+<style>
+* {
+	margin: 0px;
+	padding: 0px;
+}
+body {
+	width: 100%;
+	height: 100%;
+}
+table, th, td {
+	border: 1px solid black;
+	border-collapse: collapse;
+}
+.ramp {
+	position: fixed;
+	top: 0px;
+	right: 0px;
+}
+</style>
+</head>
+<body>
+<script src="js/three.min.js"></script>
+<script src="js/three.orbit.js"></script>
+<script src="js/weighted-list.js"></script>
+<script src="js/random.min.js"></script>
+<script src="js/prob.js"></script>
+<script src="js/jstat.js"></script>
+<script type="x-shader/x-vertex" id="vertexshader">
+attribute float size;
+attribute vec3 ca;
+varying vec3 vColor;
+void main() {
+	vColor = ca;
+	vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+	gl_PointSize = size;
+	gl_PointSize = size * (100.0 / length(mvPosition.xyz));
+	gl_Position = projectionMatrix * mvPosition;
+}
+</script>
+
+<script type="x-shader/x-fragment" id="fragmentshader">
+uniform vec3 color;
+uniform sampler2D texture;
+varying vec3 vColor;
+void main() {
+	gl_FragColor = vec4(color * vColor, 1.0);
+	gl_FragColor = gl_FragColor * texture2D(texture, gl_PointCoord);
+}
+</script>
+<script>
+
+let Distributions = {}
+Distributions.normal		= () => Prob.normal(0.5, .1)()
+Distributions.exponential 	= () => Prob.exponential(5)()
+Distributions.uniform		= () => Prob.uniform(0, 1)()
+Distributions.lognormal	 	= () => Prob.lognormal(0, 1/2)()
+Distributions.chisquare	 	= () => jStat.chisquare.sample(1)
+Distributions.beta			= () => jStat.beta.sample(1.445, 1.445)
+function combine(left, right) {
+	let result = []
+	for(let i = 0; i < left.length; i++) {
+		for(let j = 0; j < right.length; j++) {
+			result.push(left[i]+" "+right[j])
+		}
+	}
+	return Array.from(new Set(result))
+}
+let realStarNames = 'Acamar,Achernar,Achird,Acrab,Acrux,Acubens,Adhafera,Adhara,Adhil,Ain,Ainalrami,Al Kalb al Rai,Al Kurud,Al Minliar al Asad,Aladfar,Alamak,Alathfar,Albaldah,Albali,Albireo,Alchiba,Alcor,Alcyone,Aldebaran,Alderamin,Aldhanab,Aldhibah,Aldulfin,Alfirk,Algedi,Algenib,Algieba,Algol,Algorab,Alhena,Alioth,Aljanah,Alkaid,Alkalurops,Alkaphrah,Alkarab,Alkes,Almaaz,Almach,Alnair,Alnasl,Alnilam,Alnitak,Alniyat,Alphard,Alphecca,Alpheratz,Alrakis,Alrescha,Alsafi,Alsciaukat,Alsephina,Alshain,Alshat,Altair,Altais,Altarf,Alterf,Aludra,Alula Australis,Alula Borealis,Alya,Alzirr,Ancha,Angetenar,Ankaa,Anser,Antares,Arcturus,Arkab Posterior,Arkab Prior,Arneb,Ascella,Asellus Australis,Asellus Borealis,Asellus Primus,Asellus Secundus,Asellus Thertius,Asmidiske,Aspidiske,Asterope,Athebyne,Atik,Atlas,Atria,Avior,Azelfafage,Azha,Barnard\'s Star,Baten Kaitos,Beemim,Beid,Bellatrix,Betelgeuse,Bharani,Biham,Botein,Brachium,Canopus,Capella,Caph,Castor,Castula,Cebalrai,Celaeno,Cervantes,Chalawan,Chamukuy,Chara,Chertan,Copernicus,Cor Caroli,Cujam,Cursa,Dabih,Dalim,Deneb,Deneb Algedi,Denebola,Diadem,Diphda,Dschubba,Dubhe,Dziban,Edasich,Electra,Elnath,Eltanin,Enif,Errai,Fafnir,Fang,Fomalhaut,Fulu,Fum al Samakah,Furud,Fuyue,Gacrux,Garnet Star,Giausar,Gienah,Ginan,Gomeisa,Graffias,Grumium,Hadar,Haedus,Hamal,Hassaleh,Hatysa,Helvetios,Heze,Homam,Iklil,Intercrus,Izar,Jabbah,Jishui,Kaffaljidhma,Kang,Kaus Australis,Kaus Borealis,Kaus Media,Keid,Khambalia,Kitalpha,Kochab,Kornephoros,Kraz,Kuma,Kurhah,La Superba,Larawag,Lesath,Libertas,Lich,Lilii Borea,Maasym,Mahasim,Maia,Marfark,Marfik,Markab,Markeb,Marsic,Matar,Mebsuta,Megrez,Meissa,Mekbuda,Meleph,Menkalinan,Menkar,Menkent,Menkib,Merak,Merga,Meridiana,Merope,Mesarthim,Miaplacidus,Mimosa,Minchir,Minelauva,Mintaka,Mira,Mirach,Miram,Mirfak,Mirzam,Misam,Mizar,Mothallah,Muliphein,Muphrid,Muscida,Musica,Naos,Nashira,Navi,Nekkar,Nembus,Nihal,Nunki,Nusakan,Ogma,Peacock,Phact,Phecda,Pherkad,Pipirima,Pleione,Polaris,Polaris Australis,Polis,Pollux,Porrima,Praecipua,Prima Hyadum,Procyon,Propus,Proxima Centauri,Ran,Rana,Rasalas,Rasalgethi,Rasalhague,Rastaban,Regor,Regulus,Revati,Rigel,Rigil Kentaurus,Rotanev,Ruchbah,Rukbat,Sabik,Saclateni,Sadachbia,Sadalbari,Sadalmelik,Sadalsuud,Sadr,Saiph,Salm,Sargas,Sarin,Sarir,Sceptrum,Scheat,Schedar,Secunda Hyadum,Segin,Seginus,Sham,Shaula,Sheliak,Sheratan,Sirius,Situla,Skat,Spica,Sualocin,Subra,Suhail,Sulafat,Syrma,Tabit,Taiyangshou,Taiyi,Talitha,Tania Australis,Tania Borealis,Tarazed,Taygeta,Tegmine,Tejat,Terebellum,Thabit,Theemin,Thuban,Tiaki,Tianguan,Tianyi,Titawin,Tonatiuh,Torcular,Tureis,Unukalhai,Unurgunite,Vega,Veritate,Vindemiatrix,Wasat,Wazn,Wezen,Wurren,Xamidimura,Xuange,Yed Posterior,Yed Prior,Yildun,Zaniah,Zaurak,Zavijava,Zhang,Zibal,Zosma,Zubenelgenubi,Zubenelhakrabi,Zubeneschamali'.split(',')
+let fictStarNames = 'Abdrade,Acculum,Ackolam,Aclinda,Adar,Advatir,Aesir,Ajam,Ajandis,Alderaan,Aldib,Ampal,Anachonus,Anaxador,Antak,Arbatraeus,Arich,Arrakis,Ashimax,Astarte,Asterion,Astinda,Astore,Aswiri,Athyorix,Avaconea,Azaleh,Baham,Benetnasch,Betria,Brink,Bunda,Caranis,Carovon,Cebelrai,Cheleb,Chohar,Chort,Churassix,Collodor,Crescim,Daranma,Degantu,Dir,Dorellion,Dradim,Duhr,Durascadon,Eadominar,Eam,Ebbanaur,Ecio,Ecynth,Edellimar,Edemar,Efrov,Eiol,Eissam,Ekoecromia,Eliathion,Elthior,Enim,Ennust,Erdosca,Erimadon,Escant,Eskellion,Esteraeus,Estreon,Etsceron,Evexus,Exslillon,Ferathon,Ferragon,Folingar,Gatana,Gatria,Gedexus,Gemma,Gianfar,Giedi,Girtab,Halax,Haldus,Hantaron,Hasseleh,Hazra,Heka,Hensedon,Higma,Hijeroscant,Hixam,Hixar,Hixaros,Hodranus,Hoedus,Holdebaana,Hyadum,Hydrobius,Hyrma,Icheon,Ijax,Illex,Imdar,Iolam,Ionides,Iram,Iriani,Isius,Istora,Jih,Kajam,Kastra,Kentharom,Kleeia,Ksora,Magam,Maragdis,Media,Menchib,Mindara,Molbion,Moregard,Neshmet,Nixahel,Nizatorom,Nodox,Obleon,Occidan,Okul,Oxamon,Pathavon,Pentarum,Peudeanus,Poligar,Polystea,Regor,Rham,Ruchba,Sadatoni,Sallax,Sasin,Scheddi,Scipiton,Seradon,Sinistra,Sterope,Stiridon,Stratal,Strom,Tiamat,Troidom,Tropallum,Tyl,Unar,Unuk,Unur,Ushakaron,Usksion,Zarim,Zedran,Zuben'.split(',')
+let biblicalStarNames = 'Kimah Kesil Ash Ayish Hyades Mezarim Mazzaroth Nachash'.split(' ')
+let greekLetters = 'Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota Kappa Lambda Mu Nu Xi Omicron Pi Rho Sigma Tau Upsilon Phi Chi Psi Omega'.split(' ')
+let genitiveConstellations = 'Andromedae,Antliae,Apodis,Aquarii,Aquilae,Arae,Arietis,Aurigae,Boötis,Caeli,Camelopardalis,Cancri,Canum Venaticorum,Canis Majoris,Canis Minoris,Capricorni,Carinae,Cassiopeiae,Centauri,Cephei,Ceti,Chamaeleontis,Circini,Columbae,Comae Berenices,Coronae Australis,Coronae Borealis,Corvi,Crateris,Crucis,Cygni,Delphini,Doradus,Draconis,Equulei,Eridani,Fornacis,Geminorum,Gruis,Herculis,Horologii,Hydrae,Hydri,Indi,Lacertae,Leonis,Leonis Minoris,Leporis,Librae,Lupi,Lyncis,Lyrae,Mensae,Microscopii,Monocerotis,Muscae,Normae,Octantis,Ophiuchi,Orionis,Pavonis,Pegasi,Persei,Phoenicis,Pictoris,Piscium,Piscis Austrini,Puppis,Pyxidis,Reticuli,Sagittae,Sagittarii,Scorpii,Sculptoris,Scuti,Serpentis,Sextantis,Tauri,Telescopii,Trianguli,Trianguli Australis,Tucanae,Ursae Majoris,Ursae Minoris,Velorum,Virginis,Volantis,Vulpeculae'.split(',')
+let bayerDesignations = combine(greekLetters, genitiveConstellations)
+let starNames = new WeightedList(realStarNames.concat(bayerDesignations).map(name => [name, 1]))
+
+function resize() {
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+let renderer, raycaster, mouse, scene, camera, controls, skybox = {}
+
+
+async function setup() {
+
+	renderer = new THREE.WebGLRenderer({
+		alpha: true,
+		antialias: true,
+		autoclear: false
+	})
+
+	raycaster = new THREE.Raycaster()
+	mouse = new THREE.Vector2()
+
+	renderer.setSize(window.innerWidth, window.innerHeight);
+
+	document.body.appendChild(renderer.domElement);
+
+	renderer.setClearColor(0x000000, 1);
+
+	scene = new THREE.Scene();
+	scene.background = new THREE.Color(0x000000);
+
+	// skybox.others = new WeightedList("a b black-hole g k m neutron pulsar yellow".split(' ').map(x => [x, 1]))
+	// skybox.choices = new WeightedList("nebula skybox-2 skybox-3 skybox-4 skybox-5".split(' ').map(x => [x, 1]))
+	// skybox.choice = skybox.choices.peek()[0]
+	skybox.textureCube = THREE.ImageUtils.loadTextureCube([
+		"img/starfield-0.png", "img/starfield-1.png", "img/starfield-2.png",
+		"img/starfield-3.png", "img/starfield-4.png", "img/starfield-5.png",
+		// `skybox/${skybox.choice}-0.png`, `skybox/${skybox.choice}-1.png`, `skybox/${skybox.choice}-2.png`,
+		// `skybox/${skybox.choice}-3.png`, `skybox/${skybox.choice}-4.png`, `skybox/${skybox.choice}-5.png`,
+	]);
+
+	skybox.geometry = new THREE.BoxGeometry(10000, 10000, 10000);
+
+	skybox.shader = THREE.ShaderLib["cube"];
+	skybox.shader.uniforms["tCube"].value = skybox.textureCube;
+	skybox.material = new THREE.ShaderMaterial({
+		fragmentShader: skybox.shader.fragmentShader,
+		vertexShader: skybox.shader.vertexShader,
+		uniforms: skybox.shader.uniforms,
+		depthWrite: false,
+		side: THREE.BackSide
+	});
+	skybox.mesh = new THREE.Mesh(skybox.geometry, skybox.material);
+	scene.add(skybox.mesh);
+
+	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+	camera.lookAt(scene.position);
+
+	ambient = new THREE.AmbientLight(0xffffff);
+	scene.add(ambient);
+
+	controls = new THREE.OrbitControls(camera, renderer.domElement);
+	controls.enableContextMenu = false;
+	controls.enablePan = true;
+	controls.enableKeys = false;
+
+	camera.position.set(0, 200, 0);
+	camera.updateProjectionMatrix();
+
+	controls.update();
+
+	renderer.render(scene, camera);
+
+	function loadImage(src){
+		return new Promise((resolve, reject) => {
+			let img = new Image()
+			img.onload = () => resolve(img)
+			img.onerror = reject
+			img.src = src
+		})
+	}
+
+	let gradientImage = await loadImage('img/star_color_modified.png')
+	let gradientCanvas = document.createElement('canvas')
+	gradientCanvas.width = gradientImage.width;
+	gradientCanvas.height = gradientImage.height;
+	gradientCanvas.className = 'ramp'
+	gradientCanvas.getContext('2d').drawImage(gradientImage, 0, 0, gradientImage.width, gradientImage.height);
+	$(document.body).append(gradientCanvas)
+
+
+
+	function getColor(percentage) {
+		let color = gradientCanvas.getContext('2d').getImageData(percentage * gradientImage.width, 0, 1, 1).data;
+		color = Array.from(color).slice(0, -1)
+		color = `rgb(${color[0]}, ${color[1]}, ${color[2]})`
+		return color
+	}
+
+
+	let galaxy = {};
+
+	galaxy.center = 0
+	galaxy.radius = 256
+	galaxy.starsPerArm = 128;
+	galaxy.arms = 4;
+	galaxy.armAngle = 270 / galaxy.arms;
+	galaxy.plane = 32
+	galaxy.axis = new THREE.AxisHelper(galaxy.radius)
+	galaxy.axis.visible = false
+	galaxy.distributions = new WeightedList("normal uniform exponential lognormal chisquare beta".split(' ').map(x => [x, 1]))
+	galaxy.distribution = galaxy.distributions.peek()[0]
+	galaxy.stars = new THREE.Group()
+
+	function randomTheta() {
+		return Math.random() * Math.PI * 2;
+	}
+	function randomRho(dist) {
+		return Math.floor(Distributions[dist]() * (galaxy.radius - galaxy.center + 1));
+	}
+
+	let i, j, r, t, x, y, z
+	let star = {}
+	let sprite, spriteMaterial, starRadius, starColor
+
+	for(i = 0; i < galaxy.arms; i++) {
+		for(j = 0; j < galaxy.starsPerArm; j++) {
+			t = randomTheta()
+			r = randomRho(galaxy.distribution)
+
+			x = Math.cos(t) * r
+			y = (Math.random() - .5) * galaxy.plane
+			z = Math.sin(t) * r
+
+
+			starRadius = Math.floor(Distributions[galaxy.distributions.peek()[0]]() * 9) + 1
+			starColor = getColor(starRadius / 10)
+
+
+			star.geometry = new THREE.SphereGeometry(starRadius/10, 16, 16)
+			star.material = new THREE.MeshBasicMaterial({
+				color: starColor,
+				transparent: true,
+				opacity: .5
+			})
+			star.mesh = new THREE.Mesh(star.geometry, star.material)
+
+			spriteMaterial = new THREE.SpriteMaterial({
+				map: new THREE.ImageUtils.loadTexture('img/glow.png'),
+				useScreenCoordinates: false,
+				color: starColor,
+				transparent: true,
+				opacity: 1,
+				blending: THREE.AdditiveBlending
+			})
+
+
+
+			star.mesh.name = starNames.pop()[0]
+			star.mesh.position.set(x, y, z)
+			galaxy.stars.add(star.mesh)
+
+			sprite = new THREE.Sprite(spriteMaterial)
+			sprite.name = starNames.pop()[0]
+			sprite.position.set(x, y, z)
+			sprite.scale.set(starRadius, starRadius, starRadius)
+			galaxy.stars.add(sprite)
+		}
+	}
+	scene.add(galaxy.stars)
+
+	function animate() {
+		requestAnimationFrame(animate);
+		renderer.render(scene, camera);
+	}
+	animate();
+
+
+
+
+	$(document).on('click', event => {
+
+		// camera.position.y--
+		// return
+		// mouse.x =	(event.clientX / window.innerWidth)	* 2 - 1;
+		// mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+		// raycaster.setFromCamera(mouse, camera);
+		// let intersects = raycaster.intersectObjects(galaxy.stars.children, true);
+
+		// if (intersects.length > 0) {
+		// 	for(let i in intersects) {
+		// 		// console.log(i, intersects[i].object)
+		// 		// document.title = intersects[i].object.name
+		// 		// camera.position.x = mouse.x
+		// 		// camera.position.y = mouse.y
+		// 		intersects[i].object.add(camera)
+
+
+		// 	}
+		// }
+	})
+}
+setup()
+
+</script>
+</body>
+</html>

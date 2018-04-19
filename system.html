@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>Spaaace</title>
+<title>Solar System</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <link rel="shortcut icon" type="image/x-icon" href="http://www.matthewmorrone.com/psi.ico" />
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js"></script>
@@ -10,27 +10,18 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0-alpha/css/bootstrap.min.css" />
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.0/css/font-awesome.min.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.css" />
-<script>
-let log = console.log.bind(console)
-</script>
+<link rel="stylesheet" href="https://code.jquery.com/ui/jquery-ui-git.css" />
 <style>
 * {
 	margin: 0px;
 	padding: 0px;
 }
-body, iframe, .system {
+body {
 	width: 100%;
 	height: 100%;
 }
 table, th, td {
-	border: 1px solid black;
 	border-collapse: collapse;
-}
-.ramp {
-	position: fixed;
-	top: 0px;
-	right: 0px;
 }
 #controls {
 	position: fixed;
@@ -57,292 +48,60 @@ th {
 </style>
 </head>
 <body>
-<script src="js/three.min.js"></script>
-<script src="js/three.orbit.js"></script>
-<script src='js/alasql.min.js'></script>
+<div id='controls'>
+	<button id='pause'>Play</button>
+	<button id='axis'>Axis On</button>
+	<button id='orbits'>Orbits On</button>
+	<input id='speed' type='number' min=0 max=2 step='.25' value='1' list="defaultNumbers"/>
+	<datalist id="defaultNumbers">
+		<option value=".25">
+		<option value=".5">
+		<option value="1">
+		<option value="1.5">
+		<option value="1.75">
+	</datalist>
+</div>
 
-<script type="x-shader/x-vertex" id="vertexshader">
-attribute float size;
-attribute vec3 ca;
-varying vec3 vColor;
-void main() {
-	vColor = ca;
-	vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-	gl_PointSize = size;
-	gl_PointSize = size * (100.0 / length(mvPosition.xyz));
-	gl_Position = projectionMatrix * mvPosition;
-}
-</script>
-<script type="x-shader/x-fragment" id="fragmentshader">
-uniform vec3 color;
-uniform sampler2D texture;
-varying vec3 vColor;
-void main() {
-	gl_FragColor = vec4(color * vColor, 1.0);
-	gl_FragColor = gl_FragColor * texture2D(texture, gl_PointCoord);
-}
-</script>
+<!-- <table id='table' class="">
+	<thead>
+		<tr>
+			<th>Name</th>
+			<th>Radius</th>
+		</tr>
+	</thead>
+	<tbody>
+
+	</tbody>
+</table> -->
+
+<script src="three.min.js"></script>
+<script src="three.orbit.js"></script>
+<script src="dat.gui.min.js"></script>
+<script src="stats.min.js"></script>
 <script>
-Object.defineProperty(Object.prototype, "define", {
-	configurable: true,
-	enumerable: false,
-	writable: false,
-	value: function(name, value) {
-		if (Object[name]) {
-			delete Object[name]
-		}
-		Object.defineProperty(this, name, {
-			configurable: true,
-			enumerable: false,
-			value: value
-		})
-		return this
-	}
-})
-Array.prototype.define("each", Array.prototype.forEach)
-function HSVtoRGB(h, s, v) {
-	var r, g, b, i, f, p, q, t;
-	if (arguments.length === 1) {
-		s = h.s, v = h.v, h = h.h;
-	}
-	i = Math.floor(h * 6);
-	f = h * 6 - i;
-	p = v * (1 - s);
-	q = v * (1 - f * s);
-	t = v * (1 - (1 - f) * s);
-	switch (i % 6) {
-		case 0: r = v, g = t, b = p; break;
-		case 1: r = q, g = v, b = p; break;
-		case 2: r = p, g = v, b = t; break;
-		case 3: r = p, g = q, b = v; break;
-		case 4: r = t, g = p, b = v; break;
-		case 5: r = v, g = p, b = q; break;
-	}
-	return {
-		r: Math.round(r * 255),
-		g: Math.round(g * 255),
-		b: Math.round(b * 255)
-	};
-}
-let starClassColors = {
-	"b": 0x8888ff,
-	"a": 0xffffff,
-	"f": 0xffff88,
-	"g": 0xffd788,
-	"k": 0xffa588,
-	"m": 0xff8888,
-	"x": 0x000000,
-	"n": 0x999999,
-	"p": 0x666666
-}
-let planetClassColors = {
-	"desert"		: HSVtoRGB(0.50, 0.2, 0.8),
-	"tropical"		: HSVtoRGB(0.58, 0.3, 0.7),
-	"arid"			: HSVtoRGB(0.50, 0.3, 0.7),
-	"ocean"			: HSVtoRGB(0.58, 0.5, 0.9),
-	"tundra"		: HSVtoRGB(0.58, 0.3, 0.8),
-	"arctic"		: HSVtoRGB(0.48, 0.15, 0.8),
-	"continental"	: HSVtoRGB(0.59, 0.45, 0.95),
-	"alpine"		: HSVtoRGB(0.48, 0.15, 0.8),
-	"savannah"		: HSVtoRGB(0.50, 0.3, 0.7),
-	"gaia"			: HSVtoRGB(0.58, 0.3, 0.7),
-	"nuked"			: HSVtoRGB(0.6, 0.4, 0.5),
-	"gas_giant"		: HSVtoRGB(0.1, 0.15, 1.1),
-	"molten"		: HSVtoRGB(0.05, 0.65, 1.4),
-	"barren"		: HSVtoRGB(0.1, 0.4, 0.7),
-	"barren_cold"	: HSVtoRGB(0.55, 0.3, 0.75),
-	"toxic"			: HSVtoRGB(0.19, 0.45, 0.9),
-	"frozen"		: HSVtoRGB(0.55, 0.15, 0.7),
-}
-
-function resize() {
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-let renderer, raycaster, mouse, scene, camera, controls, skybox = {}
-async function setup() {
-
-	renderer = new THREE.WebGLRenderer({
-		alpha: true,
-		antialias: true,
-		autoclear: false,
-		logging: false
-	})
-
-	raycaster = new THREE.Raycaster()
-	mouse = new THREE.Vector2()
-
-	renderer.setSize(window.innerWidth, window.innerHeight);
-
-	renderer.domElement.id = 'galaxy'
-	document.body.appendChild(renderer.domElement);
-
-	renderer.setClearColor(0x000000, 1);
-
-	scene = new THREE.Scene();
-	scene.background = new THREE.Color(0x000000);
-
-	skybox.textureCube = THREE.ImageUtils.loadTextureCube([
-		"img/starfield-0.png", "img/starfield-1.png", "img/starfield-2.png",
-		"img/starfield-3.png", "img/starfield-4.png", "img/starfield-5.png",
-	]);
-
-	skybox.geometry = new THREE.BoxGeometry(10000, 10000, 10000);
-
-	skybox.shader = THREE.ShaderLib["cube"];
-	skybox.shader.uniforms["tCube"].value = skybox.textureCube;
-	skybox.material = new THREE.ShaderMaterial({
-		fragmentShader: skybox.shader.fragmentShader,
-		vertexShader: skybox.shader.vertexShader,
-		uniforms: skybox.shader.uniforms,
-		depthWrite: false,
-		side: THREE.BackSide
-	});
-	skybox.mesh = new THREE.Mesh(skybox.geometry, skybox.material);
-	scene.add(skybox.mesh);
-
-	camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
-	camera.lookAt(scene.position);
-
-	ambient = new THREE.AmbientLight(0xffffff);
-	scene.add(ambient);
-
-	controls = new THREE.OrbitControls(camera, renderer.domElement);
-	controls.enableContextMenu = false;
-	controls.enablePan = true;
-	controls.enableKeys = false;
-
-	camera.position.set(0, 200, 0);
-	camera.updateProjectionMatrix();
-
-	controls.update();
-
-	renderer.render(scene, camera);
-
-	function loadImage(src){
-		return new Promise((resolve, reject) => {
-			let img = new Image()
-			img.onload = () => resolve(img)
-			img.onerror = reject
-			img.src = src
-		})
-	}
-
-	// let galaxy = await $.getJSON('galaxy.json')
-	let stars = await alasql.promise('SELECT * FROM CSV("galaxy.csv", {headers: true})')
-	// let stars = await alasql.promise(['CREATE TABLE IF NOT EXISTS objects',
-	// 		'SELECT * INTO objects FROM CSV("galaxy.csv", {headers: true})',
-	// 		'SELECT * FROM objects'])
-	// let stars = await alasql.promise("select * from json('galaxy.json')")
-
-	galaxy = new THREE.Group()
-
-	for(s in stars) {
-		star = stars[s]
-		if (star.parent > 0) {
-			continue
-		}
-		star.geometry = new THREE.SphereGeometry(star.r/10, 16, 16)
-		star.material = new THREE.MeshBasicMaterial({
-			color: starClassColors[star.category],
-			transparent: true,
-			opacity: .5
-		})
-		star.mesh = new THREE.Mesh(star.geometry, star.material)
-
-		spriteMaterial = new THREE.SpriteMaterial({
-			map: new THREE.ImageUtils.loadTexture('img/glow.png'),
-			useScreenCoordinates: false,
-			color: starClassColors[star.category],
-			transparent: true,
-			opacity: 1,
-			blending: THREE.AdditiveBlending
-		})
-
-		star.mesh.starId = star.id
-		star.mesh.name = star.name
-		star.mesh.category = star.category
-		star.mesh.position.set(star.x, star.y, star.z)
-		galaxy.add(star.mesh)
-
-		sprite = new THREE.Sprite(spriteMaterial)
-		sprite.name = star.name
-		sprite.position.set(star.x, star.y, star.z)
-		sprite.scale.set(star.r, star.r, star.r)
-		galaxy.add(sprite)
-	}
-	scene.add(galaxy)
-
-	function animate() {
-		requestAnimationFrame(animate);
-		renderer.render(scene, camera);
-	}
-	animate();
-
-	$(document).on('click', event => {
-		if ($('#system').is(':visible')) {
-			return true
-		}
-
-
-		mouse.x =	(event.clientX / window.innerWidth)	* 2 - 1;
-		mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-		raycaster.setFromCamera(mouse, camera);
-		let intersects = raycaster.intersectObjects(galaxy.children, true), starId
-
-		if (intersects.length > 0) {
-			for(let i in intersects) {
-				if (intersects[i].object.type === "Mesh") {
-					starId = intersects[i].object.starId
-					let query = alasql(`SELECT * FROM ?
-					                  WHERE id 		= ${starId}
-					                  OR 	parent 	= ${starId}
-					                  OR 	parent  IN (`+alasql(`select id from ? where parent = ${starId}`, [stars]).map(r => r.id)+`)
-					                  `, [stars]);
-					$('#galaxy').hide()
-					initSystem(query)
-				}
-			}
-		}
-	})
-
-	// setTimeout(() => {
-	// 	let e = new $.Event("click");
-	// 	e.pageX = 786;
-	// 	e.pageY = 194;
-	// 	$(document).trigger(e);
-	// }, 2000)
-}
+let controls, renderer, scene, camera, raycaster, mouse, stats, objects = []
 function randomize(lo, hi) {
 	return Math.floor(Math.random()*hi)+lo
 }
-
-async function initSystem(data) {
-
+async function init() {
 	let $table = $('#table tbody')
 
-	let images = await $.get('/api', {
-		mode: 'ls',
-		handle: '/textures'
-	})
-
-	// $.ajax("/textures")
+	let images = await $.ajax("system/textures")
 	images = images.trim().split('\n')
+
+	let names = await $.ajax("system/planets.txt")
+	names = names.split('\n')
 
 	raycaster = new THREE.Raycaster();
 	mouse = new THREE.Vector2();
 
 	renderer = new THREE.WebGLRenderer({
 		alpha: true,
-		antialias: true,
-		logging: false
+		antialias: true
 	});
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	renderer.setPixelRatio(window.devicePixelRatio);
 
-	renderer.domElement.id = 'system'
 	document.body.appendChild(renderer.domElement);
 
 	renderer.setClearColor(0x000000, 1);
@@ -365,28 +124,79 @@ async function initSystem(data) {
 	controls.enableContextMenu = false;
 	controls.enableKeys = true;
 
-	// stats = new Stats();
+	stats = new Stats();
 	// document.body.appendChild(stats.dom);
 
+	let solarSystem = {
+		stars: [{
+			name: "Sun", //names.splice(Math.floor(Math.random() * names.length), 1)[0];
+			image: 'sunmap.jpg', // images.splice(images.indexOf(star.image), 1);
+			radius: randomize(20, 40),
+			orbit: {
+				radius: randomize(0, 10),
+				angle: Math.PI,
+				speed: .1,
+				inclination: randomize(-30, 30)
+			},
+			spin: {
+				speed: 0.005 + Math.random() * 0.01,
+				degree: Math.random(),
+				direction: 1,
+				inclination: randomize(-30, 30)
+			},
 
-
-
-
-	let solarSystem = {}
-	solarSystem.stars = alasql(`SELECT * FROM ? WHERE parent = -1`, [data])
-	solarSystem.stars.each(function(star) {
-		star.image = 'sunmap.jpg'
-		star.planets = alasql(`SELECT * FROM ? WHERE parent = ${star.id}`, [data])
-		star.planets.each(function(planet) {
-			planet.image = images.splice(Math.floor(Math.random() * images.length), 1)[0]
-			planet.moons = alasql(`SELECT * FROM ? WHERE parent = ${planet.id}`, [data])
-			planet.moons.each(function(moon) {
-				moon.image = images.splice(Math.floor(Math.random() * images.length), 1)[0]
-			})
-		})
-	})
-
-	console.log(solarSystem)
+			planets: [{
+				name: "Mercury",
+				image: 'mercury.jpg'
+			},{
+				name: "Venus",
+				image: 'venus.jpg'
+			},{
+				name: "Earth",
+				image: 'earth.jpg', //images.splice(Math.floor(Math.random() * images.length), 1)[0];
+				moons: [{
+					name: "Moon",
+					image: "moon.jpg"
+				}]
+			},{
+				name: "Mars",
+				image: 'mars.jpg'
+			},{
+				name: "Jupiter",
+				image: 'jupiter.jpg',
+				moons: [{
+					name: "Io",
+					image: "io.jpg"
+				},{
+					name: "Europa",
+					image: "europa.jpg"
+				},{
+					name: "Ganymede",
+					image: "ganymede.jpg"
+				},{
+					name: "Callisto",
+					image: "callisto.jpg"
+				}]
+			},{
+				name: "Saturn",
+				image: 'saturn.jpg',
+				moons: [{
+					name: "Titan",
+					image: "titan.png"
+				}],
+				rings: true
+			},{
+				name: "Uranus",
+				image: 'uranus.jpg'
+			},{
+				name: "Neptune",
+				image: 'neptune.jpg'
+			}]
+		},{
+			name: 'Nemesis',
+			image: 'pulsar_diffuse.png'
+		}]
+	}
 
 
 
@@ -395,8 +205,8 @@ async function initSystem(data) {
 	let skyTextureCube = THREE.ImageUtils.loadTextureCube([
 		// "starfield-1.png", "starfield-2.png", "starfield-1.png",
 		// "starfield-2.png", "starfield-1.png", "starfield-2.png"
-		`/skybox/skybox_gen_${skyChoice}-0.png`, `/skybox/skybox_gen_${skyChoice}-1.png`, `/skybox/skybox_gen_${skyChoice}-2.png`,
-		`/skybox/skybox_gen_${skyChoice}-3.png`, `/skybox/skybox_gen_${skyChoice}-4.png`, `/skybox/skybox_gen_${skyChoice}-5.png`,
+		`system/skybox/skybox_gen_${skyChoice}-0.png`, `system/skybox/skybox_gen_${skyChoice}-1.png`, `system/skybox/skybox_gen_${skyChoice}-2.png`,
+		`system/skybox/skybox_gen_${skyChoice}-3.png`, `system/skybox/skybox_gen_${skyChoice}-4.png`, `system/skybox/skybox_gen_${skyChoice}-5.png`,
 	]);
 	let skyShader = THREE.ShaderLib["cube"];
 	skyShader.uniforms["tCube"].value = skyTextureCube;
@@ -436,7 +246,7 @@ async function initSystem(data) {
 
 	// star.category = 'G'
 	star.geometry = new THREE.SphereGeometry(star.radius, 32, 32);
-	star.texture = THREE.ImageUtils.loadTexture(`/textures/${star.image}`);
+	star.texture = THREE.ImageUtils.loadTexture(`system/textures/${star.image}`);
 
 	star.material = new THREE.MeshPhongMaterial({
 		map: star.texture,
@@ -446,7 +256,7 @@ async function initSystem(data) {
 		opacity: 1
 	});
 	star.mesh = new THREE.Mesh(star.geometry, star.material);
-	// objects.push(star.mesh)
+	objects.push(star.mesh)
 	// star.mesh.traverse(function(object) {
 	// 	if (object instanceof THREE.Mesh) {
 	// 		object.visible = false;
@@ -494,7 +304,7 @@ async function initSystem(data) {
 
 
 		planet.geometry = new THREE.SphereGeometry(planet.radius, 32, 32);
-		planet.texture = THREE.ImageUtils.loadTexture(`/textures/${planet.image}`);
+		planet.texture = THREE.ImageUtils.loadTexture(`system/textures/${planet.image}`);
 
 
 		planet.material = new THREE.MeshPhongMaterial({
@@ -511,7 +321,7 @@ async function initSystem(data) {
 		planet.mesh.rotation.set(Math.PI/2, 0, THREE.Math.degToRad(planet.spin.inclination));
 		scene.add(planet.mesh)
 		star.planets.push(planet);
-		// objects.push(planet.mesh)
+		objects.push(planet.mesh)
 
 
 
@@ -583,7 +393,7 @@ async function initSystem(data) {
 			moon.spin.inclination = randomize(-30, 30)
 
 			moon.geometry = new THREE.SphereGeometry(moon.radius, 32, 32);
-			moon.texture = THREE.ImageUtils.loadTexture(`/textures/${moon.image}`);
+			moon.texture = THREE.ImageUtils.loadTexture(`system/textures/${moon.image}`);
 
 			moon.material = new THREE.MeshPhongMaterial({
 				map: moon.texture,
@@ -599,7 +409,7 @@ async function initSystem(data) {
 			moon.mesh.rotation.set(Math.PI/2, 0, THREE.Math.degToRad(moon.spin.inclination));
 			scene.add(moon.mesh)
 			planet.moons.push(moon);
-			// objects.push(moon.mesh)
+			objects.push(moon.mesh)
 
 
 			moon.trail = {}
@@ -631,9 +441,6 @@ async function initSystem(data) {
 	// $("input[type=number]").bind('keyup input', function(){
 	//		 // handle event
 	// });
-
-	let pause = false, axis = false, orbits = true
-
 	function animate() {
 
 		renderer.render(scene, camera);
@@ -732,30 +539,17 @@ async function initSystem(data) {
 		$(this).toggleClass('pressed')
 		orbits ? $(this).text('Orbits On') : $(this).text('Orbits Off')
 	})
-	$('#back').click(function() {
-		$('#system').hide()
-		$('#galaxy').show()
-	})
 
 
-	// var gui = new dat.GUI();
+	var gui = new dat.GUI();
 }
-setup()
+window.onload = init
+window.onclick = function() {
+	console.log(window, window.parent)
+	console.log($(window.parent).find('#system'))
 
+	// window.parent.closeIFrame()
+}
 </script>
-<div id='controls'>
-	<button id='back'>Back</button>
-	<button id='pause'>Play</button>
-	<button id='axis'>Axis On</button>
-	<button id='orbits'>Orbits On</button>
-	<input id='speed' type='number' min=0 max=2 step='.25' value='1' list="defaultNumbers"/>
-	<datalist id="defaultNumbers">
-		<option value=".25">
-		<option value=".5">
-		<option value="1">
-		<option value="1.5">
-		<option value="1.75">
-	</datalist>
-</div>
 </body>
 </html>

@@ -32,8 +32,22 @@ table, th, td {
 <body>
 <script src='js/alasql.min.js'></script>
 <script src='js/random.min.js'></script>
-<script src='js/weighted-list.js'></script>
+<script src="js/three.min.js"></script>
+<script src="js/three.orbit.js"></script>
+<script src="js/weighted-list.js"></script>
+<script src="js/random.min.js"></script>
+<script src="js/prob.js"></script>
+<script src="js/jstat.js"></script>
 <script>
+
+let Distributions = {}
+Distributions.normal		= () => Prob.normal(0.5, .1)()
+Distributions.exponential 	= () => Prob.exponential(5)()
+Distributions.uniform		= () => Prob.uniform(0, 1)()
+Distributions.lognormal	 	= () => Prob.lognormal(0, 1/2)()
+Distributions.chisquare	 	= () => jStat.chisquare.sample(1)
+Distributions.beta			= () => jStat.beta.sample(1.445, 1.445)
+
 function combine(left, right) {
 	let result = []
 	for(let i = 0; i < left.length; i++) {
@@ -62,39 +76,59 @@ function romanize (num) {
 	return Array(+digits.join("") + 1).join("M") + roman;
 }
 function HSVtoRGB(h, s, v) {
-    var r, g, b, i, f, p, q, t;
-    if (arguments.length === 1) {
-        s = h.s, v = h.v, h = h.h;
-    }
-    i = Math.floor(h * 6);
-    f = h * 6 - i;
-    p = v * (1 - s);
-    q = v * (1 - f * s);
-    t = v * (1 - (1 - f) * s);
-    switch (i % 6) {
-        case 0: r = v, g = t, b = p; break;
-        case 1: r = q, g = v, b = p; break;
-        case 2: r = p, g = v, b = t; break;
-        case 3: r = p, g = q, b = v; break;
-        case 4: r = t, g = p, b = v; break;
-        case 5: r = v, g = p, b = q; break;
-    }
-    return {
-        r: Math.round(r * 255),
-        g: Math.round(g * 255),
-        b: Math.round(b * 255)
-    };
+	var r, g, b, i, f, p, q, t;
+	if (arguments.length === 1) {
+		s = h.s, v = h.v, h = h.h;
+	}
+	i = Math.floor(h * 6);
+	f = h * 6 - i;
+	p = v * (1 - s);
+	q = v * (1 - f * s);
+	t = v * (1 - (1 - f) * s);
+	switch (i % 6) {
+		case 0: r = v, g = t, b = p; break;
+		case 1: r = q, g = v, b = p; break;
+		case 2: r = p, g = v, b = t; break;
+		case 3: r = p, g = q, b = v; break;
+		case 4: r = t, g = p, b = v; break;
+		case 5: r = v, g = p, b = q; break;
+	}
+	return {
+		r: Math.round(r * 255),
+		g: Math.round(g * 255),
+		b: Math.round(b * 255)
+	};
 }
-let starNames = 'Abdrade Acamar Acculum Achernar Ackolam Aclinda Acrux Acubens Adar Advatir Aesir Ajam Ajandis Alamak Alcor Aldebaran Alderaan Aldib Algol Algorab Alioth Alkaid Almach Alpha Alphard Alphecca Altair Aludra Ampal Anachonus Anaxador Angetenar Antak Antares Aquilae Arbatraeus Arcturus Arich Arrakis Ascella Ashimax Astarte Asterion Asterope Astinda Astore Aswiri Athyorix Atlas Avaconea Avior Azaleh Azha Baham Beid Bellatrix Benetnasch Beta Betelgeuse Betria Biham Botein Brachium Brink Bunda Caeli Canopus Capella Caph Caranis Carovon Castor Cebelrai Celaeno Ceti Chara Cheleb Chertan Chi Chohar Chort Churassix Collodor Corvi Crescim Cursa Cygni Dabih Daranma Degantu Delta Diadem Diphda Dir Dorellion Draconis Dradim Duhr Durascadon Eadominar Eam Ebbanaur Ecio Ecynth Edasich Edellimar Edemar Efrov Eiol Eissam Ekoecromia Electra Eliathion Elnath Elthior Enif Enim Ennust Epsilon Erdosca Eridani Erimadon Errai Escant Eskellion Esteraeus Estreon Etsceron Evexus Exslillon Ferathon Ferragon Folingar Fomalhaut Furud Gamma Gatana Gatria Gedexus Gemma Gianfar Giedi Girtab Gomeisa Grumium Hadar Haedus Halax Haldus Hantaron Hasseleh Hazra Heka Hensedon Heze Higma Hijeroscant Hixam Hixar Hixaros Hodranus Hoedus Holdebaana Homam Hyadum Hydri Hydrobius Hyrma Icheon Ijax Illex Imdar Indi Iolam Ionides Iram Iriani Isius Istora Izar Jabbah Jih Kajam Kastra Keid Kentharom Kleeia Kochab Kornephoros Kraz Ksora Kuma Lambda Lesath Maasym Magam Maia Maragdis Marfark Markab Matar Media Meissa Menchib Menkar Merga Merope Mesarthim Minchir Mindara Mintaka Mira Mirach Mirzam Mizar Molbion Moregard Muphrid Muscida Naos Nashira Navi Nekkar Nembus Neshmet Nihal Nixahel Nizatorom Nodox Nunki Nusakan Obleon Occidan Okul Omicron Oxamon Pathavon Pavonis Pentarum Persei Peudeanus Phact Pherkad Pleione Polaris Poligar Pollux Polystea Porrima Propus Rana Rasalas Rasalgethi Rasalhague Rastaban Regor Regulus Reticuli Rham Rigel Rotanev Ruchba Rukbat Sabik Sadalbari Sadatoni Saiph Sallax Sargas Sasin Sceptrum Scheat Scheddi Scipiton Seginus Seradon Serpentis Shaula Sheliak Sheratan Sigma Sinistra Situla Skat Spica Sterope Stiridon Stratal Strom Subra Syrma Tarazed Tau Terebellum Thabit Theemin Thuban Tiamat Troidom Tropallum Tureis Tyl Unar Unuk Unur Ushakaron Usksion Vega Wasat Wezen Yildun Zaniah Zarim Zaurak Zedran Zeta Zosma Zuben'.split(' ')
+
+let galaxy = {};
+
+
+galaxy.center = 0
+galaxy.radius = 256
+galaxy.starsPerArm = 128;
+galaxy.arms = 4;
+galaxy.armAngle = 270 / galaxy.arms;
+galaxy.plane = 32
+galaxy.distributions = new WeightedList("normal uniform exponential lognormal chisquare beta".split(' ').map(x => [x, 1]))
+galaxy.distribution = galaxy.distributions.peek()[0]
+galaxy.starCount = Math.pow(2, rand(7, 11))
+
+function randomTheta() {
+	return Math.random() * Math.PI * 2;
+}
+function randomRho(dist) {
+	return Math.floor(Distributions[dist]() * (galaxy.radius - galaxy.center + 1));
+}
+
+let starNameBases = 'Abdrade Acamar Acculum Achernar Ackolam Aclinda Acrux Acubens Adar Advatir Aesir Ajam Ajandis Alamak Alcor Aldebaran Alderaan Aldib Algol Algorab Alioth Alkaid Almach Alpha Alphard Alphecca Altair Aludra Ampal Anachonus Anaxador Angetenar Antak Antares Aquilae Arbatraeus Arcturus Arich Arrakis Ascella Ashimax Astarte Asterion Asterope Astinda Astore Aswiri Athyorix Atlas Avaconea Avior Azaleh Azha Baham Beid Bellatrix Benetnasch Beta Betelgeuse Betria Biham Botein Brachium Brink Bunda Caeli Canopus Capella Caph Caranis Carovon Castor Cebelrai Celaeno Ceti Chara Cheleb Chertan Chi Chohar Chort Churassix Collodor Corvi Crescim Cursa Cygni Dabih Daranma Degantu Delta Diadem Diphda Dir Dorellion Draconis Dradim Duhr Durascadon Eadominar Eam Ebbanaur Ecio Ecynth Edasich Edellimar Edemar Efrov Eiol Eissam Ekoecromia Electra Eliathion Elnath Elthior Enif Enim Ennust Epsilon Erdosca Eridani Erimadon Errai Escant Eskellion Esteraeus Estreon Etsceron Evexus Exslillon Ferathon Ferragon Folingar Fomalhaut Furud Gamma Gatana Gatria Gedexus Gemma Gianfar Giedi Girtab Gomeisa Grumium Hadar Haedus Halax Haldus Hantaron Hasseleh Hazra Heka Hensedon Heze Higma Hijeroscant Hixam Hixar Hixaros Hodranus Hoedus Holdebaana Homam Hyadum Hydri Hydrobius Hyrma Icheon Ijax Illex Imdar Indi Iolam Ionides Iram Iriani Isius Istora Izar Jabbah Jih Kajam Kastra Keid Kentharom Kleeia Kochab Kornephoros Kraz Ksora Kuma Lambda Lesath Maasym Magam Maia Maragdis Marfark Markab Matar Media Meissa Menchib Menkar Merga Merope Mesarthim Minchir Mindara Mintaka Mira Mirach Mirzam Mizar Molbion Moregard Muphrid Muscida Naos Nashira Navi Nekkar Nembus Neshmet Nihal Nixahel Nizatorom Nodox Nunki Nusakan Obleon Occidan Okul Omicron Oxamon Pathavon Pavonis Pentarum Persei Peudeanus Phact Pherkad Pleione Polaris Poligar Pollux Polystea Porrima Propus Rana Rasalas Rasalgethi Rasalhague Rastaban Regor Regulus Reticuli Rham Rigel Rotanev Ruchba Rukbat Sabik Sadalbari Sadatoni Saiph Sallax Sargas Sasin Sceptrum Scheat Scheddi Scipiton Seginus Seradon Serpentis Shaula Sheliak Sheratan Sigma Sinistra Situla Skat Spica Sterope Stiridon Stratal Strom Subra Syrma Tarazed Tau Terebellum Thabit Theemin Thuban Tiamat Troidom Tropallum Tureis Tyl Unar Unuk Unur Ushakaron Usksion Vega Wasat Wezen Yildun Zaniah Zarim Zaurak Zedran Zeta Zosma Zuben'.split(' ')
 let greekLetters = 'Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota Kappa Lambda Mu Nu Xi Omicron Pi Rho Sigma Tau Upsilon Phi Chi Psi Omega'.split(' ')
 let genitiveConstellations = 'Andromedae,Antliae,Apodis,Aquarii,Aquilae,Arae,Arietis,Aurigae,Boötis,Caeli,Camelopardalis,Cancri,Canum Venaticorum,Canis Majoris,Canis Minoris,Capricorni,Carinae,Cassiopeiae,Centauri,Cephei,Ceti,Chamaeleontis,Circini,Columbae,Comae Berenices,Coronae Australis,Coronae Borealis,Corvi,Crateris,Crucis,Cygni,Delphini,Doradus,Draconis,Equulei,Eridani,Fornacis,Geminorum,Gruis,Herculis,Horologii,Hydrae,Hydri,Indi,Lacertae,Leonis,Leonis Minoris,Leporis,Librae,Lupi,Lyncis,Lyrae,Mensae,Microscopii,Monocerotis,Muscae,Normae,Octantis,Ophiuchi,Orionis,Pavonis,Pegasi,Persei,Phoenicis,Pictoris,Piscium,Piscis Austrini,Puppis,Pyxidis,Reticuli,Sagittae,Sagittarii,Scorpii,Sculptoris,Scuti,Serpentis,Sextantis,Tauri,Telescopii,Trianguli,Trianguli Australis,Tucanae,Ursae Majoris,Ursae Minoris,Velorum,Virginis,Volantis,Vulpeculae'.split(',')
 let bayerDesignations = combine(greekLetters, genitiveConstellations)
-let starCount = Math.pow(2, rand(7, 11))
 let planetCount = () => rand(4, 10)
 let moonCount = () => rand(0, 3)
 let planetSize = (habitable) => habitable ? rand(12, 25) : rand(4, 36)
 let moonSize = (habitable) => habitable ? rand(12, 25) : rand(5, 12)
-let names = new WeightedList(starNames.concat(bayerDesignations).map(name => [name, 1])).pop(starCount)
+let starNames = new WeightedList(starNameBases.concat(bayerDesignations).map(name => [name, 1]))
 let starClasses = new WeightedList([
 	{key: "b", weight: 10,  data: {color: 0x8888ff, size: 64, hsv: [ 0.71, 0.6, 0.7 ]}},
 	{key: "a", weight: 10,  data: {color: 0xffffff, size: 32, hsv: [ 0.56, 0.4, 0.7 ]}},
@@ -127,65 +161,118 @@ let planetClasses = new WeightedList([
 	{key: "frozen", 		weight: 10, data: {habitable: false, color: HSVtoRGB(0.55, 0.15, 0.7)}},
 ]);
 
-alasql("CREATE TABLE stars   (id number AUTOINCREMENT, name string, category string, color string, size number);");
-alasql("CREATE TABLE planets (id number AUTOINCREMENT, name string, star number, category string, color string, size number);");
-alasql("CREATE TABLE moons   (id number AUTOINCREMENT, name string, planet number, category string, color string, size number);");
+alasql("CREATE TABLE stars   (id number AUTOINCREMENT, name string, x number, y number, z number, r number, category string);");
+alasql("CREATE TABLE planets (id number AUTOINCREMENT, name string, x number, y number, z number, r number, star number, category string);");
+alasql("CREATE TABLE moons   (id number AUTOINCREMENT, name string, x number, y number, z number, r number, planet number, category string);");
 
-let star, starData, starId, planets, planetData, planetId, moonData
-for(star in names) {
 
-	starData = starClasses.peek()[0]
-	alasql("INSERT INTO stars VALUES (?,?,?,?,?)", [
-		'',
-		names[star],
-		starData.key,
-		starData.data.color,
-		starData.data.size,
-	]);
+alasql("CREATE TABLE objects   (id number AUTOINCREMENT, name string, x number, y number, z number, r number, parent number, category string);");
 
-	starId = alasql.autoval('stars', 'id')
-	planets = planetCount()
-	for(p = 0; p < planets; p++) {
-		planetData = planetClasses.peek()[0]
-		alasql("INSERT INTO planets VALUES (?,?,?,?,?,?)", [
+
+
+
+let i, j, rho, theta, x, y, z, starName, planetName, moons, starId, planetId
+let star = {}
+let sprite, spriteMaterial, starRadius, starColor
+
+for(i = 0; i < galaxy.arms; i++) {
+	for(j = 0; j < galaxy.starsPerArm; j++) {
+		theta = randomTheta()
+		rho = randomRho(galaxy.distribution)
+
+		x = Math.cos(theta) * rho
+		y = (Math.random() - .5) * galaxy.plane
+		z = Math.sin(theta) * rho
+
+
+		r = Math.floor(Distributions[galaxy.distributions.peek()[0]]() * 9) + 1
+
+		starName = starNames.pop()[0]
+
+		starData = starClasses.peek()[0]
+		// alasql("INSERT INTO stars VALUES (?,?,?,?,?,?,?)", ['', starName, x, y, z, r, starData.key]);
+		alasql("INSERT INTO objects VALUES (?,?,?,?,?,?,?,?)", [
 			'',
-			names[star] + " " + romanize(p+1),
-			starId,
-			planetData.key,
-			planetData.data.color,
-			planetSize(planetData.data.habitable)
+			starName,
+			x,
+			y,
+			z,
+			r, //starData.data.size,
+			-1,
+			starData.key
 		]);
+		starId = alasql.autoval('objects', 'id')
+		console.log(starId, starName)
 
-		planetId = alasql.autoval('planets', 'id')
-		moons = moonCount()
-		for(let m = 0; m < moons; m++) {
-			moonData = planetClasses.peek()[0]
-			alasql("INSERT INTO moons VALUES (?,?,?,?,?,?)", [
+
+		planets = planetCount()
+
+
+		for(p = 0; p < planets; p++) {
+			planetData = planetClasses.peek()[0]
+			// alasql("INSERT INTO planets VALUES (?,?,?,?,?,?,?,?)", ['', starName + " " + romanize(p+1), 0, 0, 0, planetSize(planetData.data.habitable), starId, planetData.key]);
+			alasql("INSERT INTO objects VALUES (?,?,?,?,?,?,?,?)", [
 				'',
-				names[star] + " " + romanize(p+1) + String.fromCharCode(97 + m),
-				planetId,
-				moonData.key,
-				moonData.data.color,
-				planetSize(moonData.data.habitable)
+				starName + " " + romanize(p+1),
+				0,
+				0,
+				0,
+				planetSize(planetData.data.habitable),
+				starId,
+				planetData.key
 			]);
+
+			planetId = alasql.autoval('objects', 'id')
+			moons = moonCount()
+			for(let m = 0; m < moons; m++) {
+				moonData = planetClasses.peek()[0]
+				// alasql("INSERT INTO moons VALUES (?,?,?,?,?,?,?,?)", ['', starName + " " + romanize(p+1) + String.fromCharCode(97 + m), 0, 0, 0, planetSize(moonData.data.habitable), planetId, moonData.key ]);
+				alasql("INSERT INTO objects VALUES (?,?,?,?,?,?,?,?)", [
+					'',
+					starName + " " + romanize(p+1) + String.fromCharCode(97 + m),
+					0,
+					0,
+					0,
+					planetSize(moonData.data.habitable),
+					planetId,
+					moonData.key
+				]);
+			}
 		}
 	}
 }
 
-let stars = alasql('select * from stars')
-for(s in stars) {
-	star = stars[s]
-	star.planets = alasql('select * from planets where star = '+star.id)
-	for(p in star.planets) {
-		planet = star.planets[p]
-		planet.moons = alasql('select * from moons where planet = '+planet.id)
-	}
-}
-document.write(JSON.stringify(stars))
 
 
 
 
+
+// let stars = alasql('select * from stars')
+// for(s in stars) {
+// 	star = stars[s]
+// 	star.planets = alasql('select * from planets where star = '+star.id)
+// 	for(p in star.planets) {
+// 		planet = star.planets[p]
+// 		planet.moons = alasql('select * from moons where planet = '+planet.id)
+// 	}
+// }
+// document.write("<code>")
+// let exp = {
+// 	galaxy: galaxy,
+// 	stars: stars
+// }
+// document.write(JSON.stringify(exp))
+// document.write("</code>")
+
+alasql([`SELECT * INTO CSV("galaxy", {delimiter:','}) FROM objects`
+]).then(function(res){
+})
+
+// alasql([`SELECT stars.*,planets.*,moons.* INTO CSV("galaxy") FROM stars
+//        INNER JOIN planets ON stars.id = planets.star
+//        INNER JOIN moons ON planets.id = moons.planet`
+// ]).then(function(res){
+// })
 
 
 </script>
